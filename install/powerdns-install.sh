@@ -63,17 +63,24 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
     msg_warn "You chose to bind the PowerDNS webserver to 0.0.0.0 — ensure this is intentional and secure."
   fi
 
+  # Generate secure API key and store it
+  PDNS_API_KEY=$(openssl rand -hex 32)
+  
   cat <<EOF >/etc/powerdns/pdns.conf
 launch=gsqlite3
 gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
 # Enable the API so pdnsutil can manage zones
 api=yes
-api-key=$(openssl rand -hex 16)
+api-key=${PDNS_API_KEY}
 # Webserver; bind address default is local-only for safety
 webserver=yes
 webserver-address=${PDNS_WEB_BIND}
 webserver-port=8081
 EOF
+  
+  # Secure the config file
+  chmod 640 /etc/powerdns/pdns.conf
+  chown root:pdns /etc/powerdns/pdns.conf
 
   # Initialize the SQLite database
   msg_info "Initializing SQLite database"
@@ -213,10 +220,13 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   # Build Flask assets
   sudo -u powerdns-admin FLASK_APP=/opt/powerdns-admin/powerdnsadmin/__init__.py ./venv/bin/flask assets build
   
+  # Generate secure Flask secret key
+  FLASK_SECRET_KEY=$(openssl rand -hex 32)
+  
   # Create custom config for our installation
   cat <<EOF >/opt/powerdns-admin/configs/local_config.py
 # Local PowerDNS-Admin configuration
-SECRET_KEY = '$(openssl rand -hex 32)'
+SECRET_KEY = '${FLASK_SECRET_KEY}'
 BIND_ADDRESS = '0.0.0.0'
 PORT = 9191
 
@@ -227,12 +237,16 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 # PowerDNS API settings
 PDNS_STATS_URL = 'http://127.0.0.1:8081'
 PDNS_API_URL = 'http://127.0.0.1:8081'
+PDNS_API_KEY = '${PDNS_API_KEY}'
 PDNS_VERSION = '4.7.0'
 
 # Basic settings
 BASIC_ENABLED = True
 SIGNUP_ENABLED = False
 EOF
+  
+  # Secure the config file
+  chmod 640 /opt/powerdns-admin/configs/local_config.py
   
   chown powerdns-admin:powerdns-admin /opt/powerdns-admin/configs/local_config.py
   
