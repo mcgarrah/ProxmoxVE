@@ -42,6 +42,19 @@ function update_script() {
   exit
 }
 
+export var_tags
+export var_ctid
+export var_hostname
+export var_cpu
+export var_ram
+export var_disk
+export var_password
+export var_bridge
+export var_ip
+export var_gw
+export var_vlan
+export var_unprivileged
+
 start
 build_container
 description
