@@ -52,7 +52,7 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   # Configure sqlite backend
   msg_info "Configuring /etc/powerdns/pdns.conf for sqlite backend"
   mkdir -p /var/lib/powerdns
-  chown -R _powerdns:_powerdns /var/lib/powerdns || true
+  chown -R pdns:pdns /var/lib/powerdns || true
 
   # Allow binding webserver to chosen address via PDNS_WEB_BIND env var (default local-only)
   PDNS_WEB_BIND=${PDNS_WEB_BIND:-127.0.0.1}
@@ -71,6 +71,13 @@ webserver=yes
 webserver-address=${PDNS_WEB_BIND}
 webserver-port=8081
 EOF
+
+  # Initialize the SQLite database
+  msg_info "Initializing SQLite database"
+  if [[ ! -f /var/lib/powerdns/pdns.sqlite3 ]]; then
+    sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql
+    chown pdns:pdns /var/lib/powerdns/pdns.sqlite3
+  fi
 
   msg_info "Enabling and starting pdns"
   systemctl enable --now pdns
