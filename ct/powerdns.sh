@@ -9,12 +9,19 @@ source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxV
 APP="PowerDNS"
 # shellcheck disable=SC2034
 var_tags="${var_tags:-dns;powerdns}"
+var_ctid="${var_ctid:-}"
+var_hostname="${var_hostname:-powerdns}"
 var_cpu="${var_cpu:-1}"
 var_ram="${var_ram:-512}"
-var_disk="${var_disk:-2}"
+var_disk="${var_disk:-4}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-12}"
-var_unprivileged="${var_unprivileged:-1}"
+var_password="${var_password:-}"
+var_bridge="${var_bridge:-}"
+var_ip="${var_ip:-}"
+var_gw="${var_gw:-}"
+var_vlan="${var_vlan:-}"
+var_unprivileged="${var_unprivileged:-0}"
 
 header_info "$APP"
 variables
