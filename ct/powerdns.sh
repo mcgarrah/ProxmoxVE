@@ -25,6 +25,16 @@ var_gw="${var_gw:-}"
 var_vlan="${var_vlan:-}"
 var_unprivileged="${var_unprivileged:-0}"
 
+# PowerDNS specific configuration
+ROLE="${ROLE:-a}"  # Default to authoritative
+PRIVATE_ZONE="${PRIVATE_ZONE:-home.local}"  # Default private zone
+PUBLIC_ZONE="${PUBLIC_ZONE:-}"  # No default public zone
+PDNS_WEB_BIND="${PDNS_WEB_BIND:-127.0.0.1}"  # Default to localhost only
+RECURSOR_ALLOW="${RECURSOR_ALLOW:-192.168.0.0/16}"  # Default LAN access
+FORWARD_CHOICE="${FORWARD_CHOICE:-}"  # No forwarding by default
+FORWARD_DOMAIN="${FORWARD_DOMAIN:-}"
+FORWARD_IP="${FORWARD_IP:-}"
+
 header_info "$APP"
 variables
 color
@@ -56,18 +66,19 @@ export var_vlan
 export var_unprivileged
 export var_install_url
 
-start
-build_container
-description
-export var_install_url
+# Export PowerDNS configuration
 export ROLE
-export PDNS_WEB_BIND
-export RECURSOR_ALLOW
 export PRIVATE_ZONE
 export PUBLIC_ZONE
+export PDNS_WEB_BIND
+export RECURSOR_ALLOW
 export FORWARD_CHOICE
 export FORWARD_DOMAIN
 export FORWARD_IP
+
+start
+build_container
+description
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been initialized.\n${CL}"

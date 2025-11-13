@@ -93,10 +93,6 @@ EOF
   fi
 
   # Optional sample zones (honor env vars PRIVATE_ZONE and PUBLIC_ZONE for non-interactive)
-  PRIVATE_ZONE=${PRIVATE_ZONE:-}
-  if [[ -z "$PRIVATE_ZONE" ]]; then
-    read -r -p "Create a sample private zone (e.g. home.local)? Leave blank to skip: " PRIVATE_ZONE
-  fi
   if [[ -n "$PRIVATE_ZONE" ]]; then
     if command -v pdnsutil >/dev/null 2>&1; then
       msg_info "Creating private zone $PRIVATE_ZONE"
@@ -107,10 +103,6 @@ EOF
     fi
   fi
 
-  PUBLIC_ZONE=${PUBLIC_ZONE:-}
-  if [[ -z "$PUBLIC_ZONE" ]]; then
-    read -r -p "Create a sample public zone (e.g. example.com)? Leave blank to skip: " PUBLIC_ZONE
-  fi
   if [[ -n "$PUBLIC_ZONE" ]]; then
     if command -v pdnsutil >/dev/null 2>&1; then
       msg_info "Creating public zone $PUBLIC_ZONE"
@@ -147,10 +139,6 @@ if [[ "$ROLE" == "r" || "$ROLE" == "b" ]]; then
   msg_info "Configuring recursor to listen and allow client networks"
 
   # Default allow-from as common LAN RFC1918 block; allow env var RECURSOR_ALLOW to prefill
-  RECURSOR_ALLOW=${RECURSOR_ALLOW:-}
-  if [[ -z "$RECURSOR_ALLOW" ]]; then
-    read -r -p "Allowed client networks for recursor (comma separated, default: 192.168.0.0/16): " RECURSOR_ALLOW
-  fi
   RECURSOR_ALLOW=${RECURSOR_ALLOW:-192.168.0.0/16}
 
   # Basic recursor config
@@ -163,30 +151,14 @@ allow-from=${RECURSOR_ALLOW}
 EOF
 
   # Optionally forward a private zone to an authoritative server — honor env vars FORWARD_CHOICE, FORWARD_DOMAIN, FORWARD_IP
-  FORWARD_CHOICE=${FORWARD_CHOICE:-}
-  if [[ -z "$FORWARD_CHOICE" ]]; then
-    read -r -p "Forward a private zone to an authoritative server? (y/N) " FORWARD_CHOICE
-  fi
-  if [[ "${FORWARD_CHOICE,,}" =~ ^(y|yes)$ ]]; then
-    FORWARD_DOMAIN=${FORWARD_DOMAIN:-}
-    FORWARD_IP=${FORWARD_IP:-}
-    if [[ -z "$FORWARD_DOMAIN" ]]; then
-      read -r -p "Domain to forward (e.g. home.local): " FORWARD_DOMAIN
-    fi
-    if [[ -z "$FORWARD_IP" ]]; then
-      read -r -p "Authoritative server IP (e.g. 192.168.1.50): " FORWARD_IP
-    fi
-    if [[ -n "$FORWARD_DOMAIN" && -n "$FORWARD_IP" ]]; then
-      # Append forward-zones entry
-      if grep -q "^forward-zones" "${RECURSOR_CONF}"; then
-          sed -i "/^forward-zones/s/$/,${FORWARD_DOMAIN}=${FORWARD_IP}/" "${RECURSOR_CONF}" || true
-        else
-          echo "forward-zones=${FORWARD_DOMAIN}=${FORWARD_IP}" >>"${RECURSOR_CONF}"
-        fi
-      msg_ok "Configured recursor to forward ${FORWARD_DOMAIN} to ${FORWARD_IP}"
-    else
-      msg_warn "Domain or IP missing; skipping forward setup."
-    fi
+  if [[ "${FORWARD_CHOICE,,}" =~ ^(y|yes)$ ]] && [[ -n "$FORWARD_DOMAIN" && -n "$FORWARD_IP" ]]; then
+    # Append forward-zones entry
+    if grep -q "^forward-zones" "${RECURSOR_CONF}"; then
+        sed -i "/^forward-zones/s/$/,${FORWARD_DOMAIN}=${FORWARD_IP}/" "${RECURSOR_CONF}" || true
+      else
+        echo "forward-zones=${FORWARD_DOMAIN}=${FORWARD_IP}" >>"${RECURSOR_CONF}"
+      fi
+    msg_ok "Configured recursor to forward ${FORWARD_DOMAIN} to ${FORWARD_IP}"
   fi
 
   msg_info "Enabling and starting pdns-recursor"
