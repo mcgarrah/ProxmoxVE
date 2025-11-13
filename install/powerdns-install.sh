@@ -175,42 +175,44 @@ fi
 if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   msg_info "Installing PowerDNS-Admin web interface"
   
-  # Install dependencies
+  # Install system dependencies (based on Dockerfile)
   $STD apt-get update
-  $STD apt-get install -y python3 python3-pip python3-venv git build-essential pkg-config nodejs npm
-  
-  # Install yarn globally
-  npm install -g yarn
+  $STD apt-get install -y python3 python3-pip python3-venv git build-essential pkg-config
+  $STD apt-get install -y libffi-dev libpq-dev libxml2-dev libmariadb-dev-compat libmariadb-dev
+  $STD apt-get install -y libldap2-dev libsasl2-dev libssl-dev libxmlsec1-dev
+  $STD apt-get install -y nodejs npm yarn
   
   # Create powerdns-admin user
   useradd --system --home /opt/powerdns-admin --shell /bin/bash powerdns-admin || true
   
-  # Clone PowerDNS-Admin
+  # Clone PowerDNS-Admin from the local repository
   if [[ ! -d /opt/powerdns-admin ]]; then
     git clone https://github.com/PowerDNS-Admin/PowerDNS-Admin.git /opt/powerdns-admin
     chown -R powerdns-admin:powerdns-admin /opt/powerdns-admin
   fi
   
-  # Setup Python virtual environment and install dependencies (excluding MySQL)
+  # Setup Python virtual environment
   cd /opt/powerdns-admin
   sudo -u powerdns-admin python3 -m venv venv
   sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
   
-  # Install all required dependencies for PowerDNS-Admin
-  sudo -u powerdns-admin ./venv/bin/pip install flask flask-sqlalchemy flask-migrate gunicorn
-  sudo -u powerdns-admin ./venv/bin/pip install requests python-dotenv bcrypt pyotp qrcode
-  sudo -u powerdns-admin ./venv/bin/pip install flask-login flask-wtf wtforms
-  sudo -u powerdns-admin ./venv/bin/pip install flask-mail flask-limiter flask-session
-  sudo -u powerdns-admin ./venv/bin/pip install flask-assets cssmin jsmin
-  sudo -u powerdns-admin ./venv/bin/pip install authlib python-ldap3 configobj
-  sudo -u powerdns-admin ./venv/bin/pip install dnspython lxml pytimeparse
+  # Install Python dependencies from existing requirements.txt
+  sudo -u powerdns-admin ./venv/bin/pip install --use-pep517 -r requirements.txt
   
-  # Create SQLite configuration
-  cat <<EOF >/opt/powerdns-admin/default_config.py
-import os
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-# Basic config
+  # Build frontend assets (following Dockerfile process)
+  cd /opt/powerdns-admin
+  sudo -u powerdns-admin yarn install --pure-lockfile --production
+  sudo -u powerdns-admin yarn cache clean
+  
+  # Modify assets.py to remove cssrewrite (as done in Dockerfile)
+  sed -i -r -e "s|'rcssmin',\s?'cssrewrite'|'rcssmin'|g" /opt/powerdns-admin/powerdnsadmin/assets.py
+  
+  # Build Flask assets
+  sudo -u powerdns-admin FLASK_APP=/opt/powerdns-admin/powerdnsadmin/__init__.py ./venv/bin/flask assets build
+  
+  # Create custom config for our installation
+  cat <<EOF >/opt/powerdns-admin/configs/local_config.py
+# Local PowerDNS-Admin configuration
 SECRET_KEY = '$(openssl rand -hex 32)'
 BIND_ADDRESS = '0.0.0.0'
 PORT = 9191
@@ -219,7 +221,7 @@ PORT = 9191
 SQLALCHEMY_DATABASE_URI = 'sqlite:////opt/powerdns-admin/powerdns-admin.db'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# PowerDNS API
+# PowerDNS API settings
 PDNS_STATS_URL = 'http://127.0.0.1:8081'
 PDNS_API_URL = 'http://127.0.0.1:8081'
 PDNS_VERSION = '4.7.0'
@@ -229,79 +231,43 @@ BASIC_ENABLED = True
 SIGNUP_ENABLED = False
 EOF
   
-  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/default_config.py
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/configs/local_config.py
   
-  # Install Node.js dependencies (skip build - use pre-built assets)
-  sudo -u powerdns-admin yarn install || sudo -u powerdns-admin npm install
-  
-  # Initialize SQLite database and run migrations
-  cd /opt/powerdns-admin
-  
-  # Create database directory and file
+  # Initialize database
   sudo -u powerdns-admin mkdir -p /opt/powerdns-admin/instance
   sudo -u powerdns-admin touch /opt/powerdns-admin/powerdns-admin.db
   
-  # Initialize Flask database
-  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db init || true
-  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db migrate -m "Initial migration" || true
-  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade
+  # Initialize Flask database migrations
+  cd /opt/powerdns-admin
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade || true
   
-  # Create initial admin user
-  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask create-initial-user || true
-  
-  
-  # Create a simple Flask app
-  cat <<EOF >/opt/powerdns-admin/app.py
-from flask import Flask, render_template_string, request, redirect, url_for, flash
-import requests
-import json
+  # Use the existing run.py from the repository
+  # Create wrapper script to load custom config
+  cat <<EOF >/opt/powerdns-admin/start.py
+#!/usr/bin/env python3
+import os
+import sys
+sys.path.insert(0, '/opt/powerdns-admin')
 
-app = Flask(__name__)
-app.secret_key = '$(openssl rand -hex 32)'
+# Set config file path
+os.environ['POWERDNS_ADMIN_CONFIG'] = '/opt/powerdns-admin/configs/local_config.py'
 
-# PowerDNS API configuration
-PDNS_API_URL = 'http://127.0.0.1:8081/api/v1'
-with open('/etc/powerdns/pdns.conf', 'r') as f:
-    for line in f:
-        if line.startswith('api-key='):
-            API_KEY = line.split('=')[1].strip()
-            break
-
-headers = {'X-API-Key': API_KEY}
-
-@app.route('/')
-def index():
-    try:
-        response = requests.get(f'{PDNS_API_URL}/servers/localhost/zones', headers=headers)
-        zones = response.json() if response.status_code == 200 else []
-    except:
-        zones = []
-    
-    return render_template_string('''
-<!DOCTYPE html>
-<html><head><title>PowerDNS Admin</title></head>
-<body>
-<h1>PowerDNS Admin</h1>
-<h2>Zones:</h2>
-<ul>
-{% for zone in zones %}
-<li>{{ zone.name }} ({{ zone.kind }})</li>
-{% endfor %}
-</ul>
-<p><a href="http://{{ request.host.split(':')[0] }}:8081">PowerDNS API Interface</a></p>
-</body></html>
-    ''', zones=zones)
+from powerdnsadmin import create_app
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9191)
+    app = create_app()
+    app.run(host='0.0.0.0', port=9191, debug=False)
+else:
+    app = create_app()
 EOF
   
-  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/app.py
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/start.py
+  chmod +x /opt/powerdns-admin/start.py
   
   # Create systemd service
   cat <<EOF >/etc/systemd/system/powerdns-admin.service
 [Unit]
-Description=PowerDNS-Admin
+Description=PowerDNS-Admin Web Interface
 Requires=pdns.service
 After=pdns.service
 
@@ -309,15 +275,10 @@ After=pdns.service
 User=powerdns-admin
 Group=powerdns-admin
 WorkingDirectory=/opt/powerdns-admin
-Environment=FLASK_APP=powerdnsadmin
-ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 2 powerdnsadmin:create_app()
-ExecReload=/bin/kill -s HUP \$MAINPID
+Environment=POWERDNS_ADMIN_CONFIG=/opt/powerdns-admin/configs/local_config.py
+ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --bind 0.0.0.0:9191 --workers 2 start:app
 Restart=always
 RestartSec=3
-KillMode=mixed
-TimeoutStopSec=5
-PrivateTmp=true
-RuntimeDirectory=powerdns-admin
 
 [Install]
 WantedBy=multi-user.target
