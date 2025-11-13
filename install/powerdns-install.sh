@@ -177,12 +177,15 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   
   # Install dependencies
   $STD apt-get update
-  $STD apt-get install -y python3 python3-pip python3-venv git nodejs npm build-essential
+  $STD apt-get install -y python3 python3-pip python3-venv git build-essential pkg-config nodejs npm
+  
+  # Install yarn globally
+  npm install -g yarn
   
   # Create powerdns-admin user
   useradd --system --home /opt/powerdns-admin --shell /bin/bash powerdns-admin || true
   
-  # Clone and setup PowerDNS-Admin
+  # Clone PowerDNS-Admin
   if [[ ! -d /opt/powerdns-admin ]]; then
     git clone https://github.com/PowerDNS-Admin/PowerDNS-Admin.git /opt/powerdns-admin
     chown -R powerdns-admin:powerdns-admin /opt/powerdns-admin
@@ -193,19 +196,16 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   sudo -u powerdns-admin python3 -m venv venv
   sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
   
-  # Install requirements excluding MySQL dependencies
+  # Install requirements but skip MySQL client
   sudo -u powerdns-admin ./venv/bin/pip install flask flask-sqlalchemy flask-migrate gunicorn
   sudo -u powerdns-admin ./venv/bin/pip install requests python-dotenv bcrypt
   sudo -u powerdns-admin ./venv/bin/pip install flask-login flask-wtf wtforms
   sudo -u powerdns-admin ./venv/bin/pip install flask-mail flask-limiter
   
-  # Install Node.js dependencies and build assets
-  sudo -u powerdns-admin npm install
-  sudo -u powerdns-admin npm run build
-  
-  # Create minimal configuration for SQLite
-  cat <<EOF >/opt/powerdns-admin/config.py
+  # Create SQLite configuration
+  cat <<EOF >/opt/powerdns-admin/default_config.py
 import os
+basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Basic config
 SECRET_KEY = '$(openssl rand -hex 32)'
@@ -221,33 +221,32 @@ PDNS_STATS_URL = 'http://127.0.0.1:8081'
 PDNS_API_URL = 'http://127.0.0.1:8081'
 PDNS_VERSION = '4.7.0'
 
-# Basic auth
+# Basic settings
 BASIC_ENABLED = True
 SIGNUP_ENABLED = False
 EOF
   
-  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/config.py
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/default_config.py
   
-  # Create a simple Flask app for SQLite setup
-  cat <<EOF >/opt/powerdns-admin/init_db.py
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-import os
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////opt/powerdns-admin/powerdns-admin.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
-# Create basic tables
-with app.app_context():
-    db.create_all()
-    print("Database initialized")
-EOF
+  # Install Node.js dependencies and build assets
+  sudo -u powerdns-admin yarn install
+  sudo -u powerdns-admin yarn build || sudo -u powerdns-admin npm run build:assets || true
   
-  # Initialize SQLite database
+  # Initialize SQLite database and run migrations
   cd /opt/powerdns-admin
-  sudo -u powerdns-admin ./venv/bin/python init_db.py
+  
+  # Create database directory and file
+  sudo -u powerdns-admin mkdir -p /opt/powerdns-admin/instance
+  sudo -u powerdns-admin touch /opt/powerdns-admin/powerdns-admin.db
+  
+  # Initialize Flask database
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db init || true
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db migrate -m "Initial migration" || true
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade
+  
+  # Create initial admin user
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask create-initial-user || true
+  
   
   # Create a simple Flask app
   cat <<EOF >/opt/powerdns-admin/app.py
@@ -308,7 +307,8 @@ After=pdns.service
 User=powerdns-admin
 Group=powerdns-admin
 WorkingDirectory=/opt/powerdns-admin
-ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 2 app:app
+Environment=FLASK_APP=powerdnsadmin
+ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 2 powerdnsadmin:create_app()
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
 RestartSec=3
