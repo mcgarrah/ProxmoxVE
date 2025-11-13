@@ -45,6 +45,15 @@ function update_script() {
 start
 build_container
 description
+export var_install_url
+export ROLE
+export PDNS_WEB_BIND
+export RECURSOR_ALLOW
+export PRIVATE_ZONE
+export PUBLIC_ZONE
+export FORWARD_CHOICE
+export FORWARD_DOMAIN
+export FORWARD_IP
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been initialized.\n${CL}"
