@@ -13,11 +13,12 @@ var_install="${var_install:-powerdns-install}"
 var_tags="${var_tags:-dns;powerdns}"
 var_ctid="${var_ctid:-}"
 var_hostname="${var_hostname:-powerdns}"
-var_cpu="${var_cpu:-1}"
-# Increase RAM if PowerDNS-Admin is requested
+# Increase CPU and RAM if PowerDNS-Admin is requested
 if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]]; then
+  var_cpu="${var_cpu:-2}"
   var_ram="${var_ram:-1024}"
 else
+  var_cpu="${var_cpu:-1}"
   var_ram="${var_ram:-512}"
 fi
 var_disk="${var_disk:-4}"
