@@ -8,6 +8,8 @@ source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxV
 
 APP="PowerDNS"
 # shellcheck disable=SC2034
+var_install="${var_install:-powerdns-install}"
+# shellcheck disable=SC2034
 var_tags="${var_tags:-dns;powerdns}"
 var_ctid="${var_ctid:-}"
 var_hostname="${var_hostname:-powerdns}"
