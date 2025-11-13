@@ -48,8 +48,8 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   else
     msg_info "Skipping apt install for pdns-server (already present)"
     # Ensure sqlite3 is installed even if pdns is already present
-    $STD apt-get update
-    $STD apt-get install -y sqlite3
+    apt-get update >/dev/null
+    apt-get install -y sqlite3
   fi
 
   # Configure sqlite backend
