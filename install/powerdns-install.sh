@@ -4,8 +4,6 @@
 # Author: Michael McGarrah (mcgarrah)
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://www.powerdns.com/
-
-#!/usr/bin/env bash
 # shellcheck disable=SC1091,SC1090
 source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
 color
