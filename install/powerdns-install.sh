@@ -175,11 +175,10 @@ fi
 if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   msg_info "Installing PowerDNS-Admin web interface"
   
-  # Install system dependencies (based on Dockerfile)
+  # Install system dependencies (SQLite-only, no MariaDB/PostgreSQL)
   $STD apt-get update
   $STD apt-get install -y python3 python3-pip python3-venv git build-essential pkg-config
-  $STD apt-get install -y libffi-dev libpq-dev libxml2-dev libmariadb-dev-compat libmariadb-dev
-  $STD apt-get install -y libldap2-dev libsasl2-dev libssl-dev libxmlsec1-dev
+  $STD apt-get install -y libffi-dev libxml2-dev libldap2-dev libsasl2-dev libssl-dev libxmlsec1-dev
   $STD apt-get install -y nodejs npm yarn
   
   # Create powerdns-admin user
@@ -196,7 +195,11 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   sudo -u powerdns-admin python3 -m venv venv
   sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
   
-  # Install Python dependencies from existing requirements.txt
+  # Remove MySQL/PostgreSQL packages from requirements.txt for SQLite-only installation
+  sed -i '/^mysqlclient==/d' requirements.txt
+  sed -i '/^psycopg2==/d' requirements.txt
+  
+  # Install Python dependencies (SQLite-only)
   sudo -u powerdns-admin ./venv/bin/pip install --use-pep517 -r requirements.txt
   
   # Build frontend assets (following Dockerfile process)
