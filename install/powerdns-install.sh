@@ -44,9 +44,12 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   if [[ $SKIP_PDNS_INSTALL -eq 0 ]]; then
     msg_info "Installing PowerDNS Authoritative Server (sqlite backend)"
     $STD apt-get update
-    $STD apt-get install -y pdns-server pdns-backend-sqlite3
+    $STD apt-get install -y pdns-server pdns-backend-sqlite3 sqlite3
   else
     msg_info "Skipping apt install for pdns-server (already present)"
+    # Ensure sqlite3 is installed even if pdns is already present
+    $STD apt-get update
+    $STD apt-get install -y sqlite3
   fi
 
   # Configure sqlite backend
