@@ -177,7 +177,7 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   
   # Install dependencies
   $STD apt-get update
-  $STD apt-get install -y python3 python3-pip python3-venv git nodejs npm
+  $STD apt-get install -y python3 python3-pip python3-venv git nodejs npm build-essential
   
   # Create powerdns-admin user
   useradd --system --home /opt/powerdns-admin --shell /bin/bash powerdns-admin || true
@@ -188,27 +188,31 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
     chown -R powerdns-admin:powerdns-admin /opt/powerdns-admin
   fi
   
-  # Setup Python virtual environment and install dependencies
+  # Setup Python virtual environment and install dependencies (excluding MySQL)
   cd /opt/powerdns-admin
   sudo -u powerdns-admin python3 -m venv venv
   sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
-  sudo -u powerdns-admin ./venv/bin/pip install -r requirements.txt
+  
+  # Install requirements excluding MySQL dependencies
+  sudo -u powerdns-admin ./venv/bin/pip install flask flask-sqlalchemy flask-migrate gunicorn
+  sudo -u powerdns-admin ./venv/bin/pip install requests python-dotenv bcrypt
+  sudo -u powerdns-admin ./venv/bin/pip install flask-login flask-wtf wtforms
+  sudo -u powerdns-admin ./venv/bin/pip install flask-mail flask-limiter
   
   # Install Node.js dependencies and build assets
   sudo -u powerdns-admin npm install
   sudo -u powerdns-admin npm run build
   
-  # Create configuration
-  cat <<EOF >/opt/powerdns-admin/powerdnsadmin/default_config.py
+  # Create minimal configuration for SQLite
+  cat <<EOF >/opt/powerdns-admin/config.py
 import os
-basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Basic config
 SECRET_KEY = '$(openssl rand -hex 32)'
 BIND_ADDRESS = '0.0.0.0'
 PORT = 9191
 
-# Database
+# Database - SQLite
 SQLALCHEMY_DATABASE_URI = 'sqlite:////opt/powerdns-admin/powerdns-admin.db'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -216,13 +220,82 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 PDNS_STATS_URL = 'http://127.0.0.1:8081'
 PDNS_API_URL = 'http://127.0.0.1:8081'
 PDNS_VERSION = '4.7.0'
+
+# Basic auth
+BASIC_ENABLED = True
+SIGNUP_ENABLED = False
 EOF
   
-  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/powerdnsadmin/default_config.py
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/config.py
   
-  # Initialize database
+  # Create a simple Flask app for SQLite setup
+  cat <<EOF >/opt/powerdns-admin/init_db.py
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+import os
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////opt/powerdns-admin/powerdns-admin.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# Create basic tables
+with app.app_context():
+    db.create_all()
+    print("Database initialized")
+EOF
+  
+  # Initialize SQLite database
   cd /opt/powerdns-admin
-  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade
+  sudo -u powerdns-admin ./venv/bin/python init_db.py
+  
+  # Create a simple Flask app
+  cat <<EOF >/opt/powerdns-admin/app.py
+from flask import Flask, render_template_string, request, redirect, url_for, flash
+import requests
+import json
+
+app = Flask(__name__)
+app.secret_key = '$(openssl rand -hex 32)'
+
+# PowerDNS API configuration
+PDNS_API_URL = 'http://127.0.0.1:8081/api/v1'
+with open('/etc/powerdns/pdns.conf', 'r') as f:
+    for line in f:
+        if line.startswith('api-key='):
+            API_KEY = line.split('=')[1].strip()
+            break
+
+headers = {'X-API-Key': API_KEY}
+
+@app.route('/')
+def index():
+    try:
+        response = requests.get(f'{PDNS_API_URL}/servers/localhost/zones', headers=headers)
+        zones = response.json() if response.status_code == 200 else []
+    except:
+        zones = []
+    
+    return render_template_string('''
+<!DOCTYPE html>
+<html><head><title>PowerDNS Admin</title></head>
+<body>
+<h1>PowerDNS Admin</h1>
+<h2>Zones:</h2>
+<ul>
+{% for zone in zones %}
+<li>{{ zone.name }} ({{ zone.kind }})</li>
+{% endfor %}
+</ul>
+<p><a href="http://{{ request.host.split(':')[0] }}:8081">PowerDNS API Interface</a></p>
+</body></html>
+    ''', zones=zones)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=9191)
+EOF
+  
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/app.py
   
   # Create systemd service
   cat <<EOF >/etc/systemd/system/powerdns-admin.service
@@ -235,9 +308,10 @@ After=pdns.service
 User=powerdns-admin
 Group=powerdns-admin
 WorkingDirectory=/opt/powerdns-admin
-Environment=FLASK_APP=powerdnsadmin
-ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 4 powerdnsadmin:create_app()
+ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 2 app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
+Restart=always
+RestartSec=3
 KillMode=mixed
 TimeoutStopSec=5
 PrivateTmp=true
