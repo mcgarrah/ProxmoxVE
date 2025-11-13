@@ -7,6 +7,7 @@ source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxV
 # Source: https://www.powerdns.com/
 
 APP="PowerDNS"
+NO_VAAPI=1
 # shellcheck disable=SC2034
 var_install="${var_install:-powerdns-install}"
 # shellcheck disable=SC2034
