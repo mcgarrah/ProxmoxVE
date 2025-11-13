@@ -196,11 +196,12 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   sudo -u powerdns-admin python3 -m venv venv
   sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
   
-  # Install requirements but skip MySQL client
+  # Install requirements from requirements.txt but exclude MySQL
   sudo -u powerdns-admin ./venv/bin/pip install flask flask-sqlalchemy flask-migrate gunicorn
   sudo -u powerdns-admin ./venv/bin/pip install requests python-dotenv bcrypt
   sudo -u powerdns-admin ./venv/bin/pip install flask-login flask-wtf wtforms
-  sudo -u powerdns-admin ./venv/bin/pip install flask-mail flask-limiter
+  sudo -u powerdns-admin ./venv/bin/pip install flask-mail flask-limiter flask-session
+  sudo -u powerdns-admin ./venv/bin/pip install flask-assets cssmin jsmin
   
   # Create SQLite configuration
   cat <<EOF >/opt/powerdns-admin/default_config.py
@@ -228,9 +229,8 @@ EOF
   
   chown powerdns-admin:powerdns-admin /opt/powerdns-admin/default_config.py
   
-  # Install Node.js dependencies and build assets
-  sudo -u powerdns-admin yarn install
-  sudo -u powerdns-admin yarn build || sudo -u powerdns-admin npm run build:assets || true
+  # Install Node.js dependencies (skip build - use pre-built assets)
+  sudo -u powerdns-admin yarn install || sudo -u powerdns-admin npm install
   
   # Initialize SQLite database and run migrations
   cd /opt/powerdns-admin
