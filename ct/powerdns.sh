@@ -34,6 +34,7 @@ RECURSOR_ALLOW="${RECURSOR_ALLOW:-192.168.0.0/16}"  # Default LAN access
 FORWARD_CHOICE="${FORWARD_CHOICE:-}"  # No forwarding by default
 FORWARD_DOMAIN="${FORWARD_DOMAIN:-}"
 FORWARD_IP="${FORWARD_IP:-}"
+INSTALL_WEBUI="${INSTALL_WEBUI:-}"  # Optional PowerDNS-Admin web interface
 
 header_info "$APP"
 variables
@@ -75,6 +76,7 @@ export RECURSOR_ALLOW
 export FORWARD_CHOICE
 export FORWARD_DOMAIN
 export FORWARD_IP
+export INSTALL_WEBUI
 
 start
 build_container

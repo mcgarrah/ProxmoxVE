@@ -171,6 +171,95 @@ EOF
   fi
 fi
 
+# Optional PowerDNS-Admin web interface installation
+if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
+  msg_info "Installing PowerDNS-Admin web interface"
+  
+  # Install dependencies
+  $STD apt-get update
+  $STD apt-get install -y python3 python3-pip python3-venv git nodejs npm
+  
+  # Create powerdns-admin user
+  useradd --system --home /opt/powerdns-admin --shell /bin/bash powerdns-admin || true
+  
+  # Clone and setup PowerDNS-Admin
+  if [[ ! -d /opt/powerdns-admin ]]; then
+    git clone https://github.com/PowerDNS-Admin/PowerDNS-Admin.git /opt/powerdns-admin
+    chown -R powerdns-admin:powerdns-admin /opt/powerdns-admin
+  fi
+  
+  # Setup Python virtual environment and install dependencies
+  cd /opt/powerdns-admin
+  sudo -u powerdns-admin python3 -m venv venv
+  sudo -u powerdns-admin ./venv/bin/pip install --upgrade pip
+  sudo -u powerdns-admin ./venv/bin/pip install -r requirements.txt
+  
+  # Install Node.js dependencies and build assets
+  sudo -u powerdns-admin npm install
+  sudo -u powerdns-admin npm run build
+  
+  # Create configuration
+  cat <<EOF >/opt/powerdns-admin/powerdnsadmin/default_config.py
+import os
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Basic config
+SECRET_KEY = '$(openssl rand -hex 32)'
+BIND_ADDRESS = '0.0.0.0'
+PORT = 9191
+
+# Database
+SQLALCHEMY_DATABASE_URI = 'sqlite:////opt/powerdns-admin/powerdns-admin.db'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+# PowerDNS API
+PDNS_STATS_URL = 'http://127.0.0.1:8081'
+PDNS_API_URL = 'http://127.0.0.1:8081'
+PDNS_VERSION = '4.7.0'
+EOF
+  
+  chown powerdns-admin:powerdns-admin /opt/powerdns-admin/powerdnsadmin/default_config.py
+  
+  # Initialize database
+  cd /opt/powerdns-admin
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade
+  
+  # Create systemd service
+  cat <<EOF >/etc/systemd/system/powerdns-admin.service
+[Unit]
+Description=PowerDNS-Admin
+Requires=pdns.service
+After=pdns.service
+
+[Service]
+User=powerdns-admin
+Group=powerdns-admin
+WorkingDirectory=/opt/powerdns-admin
+Environment=FLASK_APP=powerdnsadmin
+ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --pid /run/powerdns-admin/pid --bind 0.0.0.0:9191 --workers 4 powerdnsadmin:create_app()
+ExecReload=/bin/kill -s HUP \$MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+RuntimeDirectory=powerdns-admin
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  
+  # Enable and start service
+  systemctl daemon-reload
+  systemctl enable --now powerdns-admin
+  
+  if systemctl --quiet is-active powerdns-admin; then
+    msg_ok "PowerDNS-Admin installed and running on port 9191"
+    msg_info "Access PowerDNS-Admin at: http://$(hostname -I | awk '{print $1}'):9191"
+    msg_info "Default login: admin / admin (change after first login)"
+  else
+    msg_error "PowerDNS-Admin failed to start; see journalctl -u powerdns-admin"
+  fi
+fi
+
 motd_ssh
 customize
 
