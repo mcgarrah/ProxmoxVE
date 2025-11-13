@@ -43,7 +43,7 @@
         "install_webui": {
             "type": "boolean",
             "default": false,
-            "description": "Install PowerDNS-Admin web interface for easier DNS management (adds ~500MB to container size)"
+            "description": "Install PowerDNS-Admin web interface for easier DNS management (requires 1GB+ RAM, adds ~500MB disk)"
         }
     },
     "examples": [
@@ -59,8 +59,8 @@
         },
         {
             "title": "Install with PowerDNS-Admin web interface",
-            "command": "INSTALL_WEBUI=yes var_hostname=powerdns var_ctid=150 bash ct/powerdns.sh",
-            "notes": "Install PowerDNS with the PowerDNS-Admin web interface for easier management."
+            "command": "INSTALL_WEBUI=yes var_hostname=powerdns var_ctid=150 var_ram=1024 bash ct/powerdns.sh",
+            "notes": "Install PowerDNS with the PowerDNS-Admin web interface for easier management. Requires 1GB+ RAM."
         }
     ],
     "notes": [
@@ -89,7 +89,7 @@
             "type": "warning"
         },
         {
-            "text": "PowerDNS-Admin web interface: Set INSTALL_WEBUI=yes to install the PowerDNS-Admin web interface on port 9191. Default credentials are admin/admin (change after first login). This adds ~500MB to container size.",
+            "text": "PowerDNS-Admin web interface: Set INSTALL_WEBUI=yes to install the PowerDNS-Admin web interface on port 9191. Default credentials are admin/admin (change after first login). Requires 1GB+ RAM and adds ~500MB disk space.",
             "type": "info"
         }
     ],
