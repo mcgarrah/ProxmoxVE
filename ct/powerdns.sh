@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC1091
-source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/build.func)
+# Set base URL for repository access
+if [ -n "$var_install_url" ]; then
+  BASE_URL="$(dirname "$var_install_url")"
+else
+  BASE_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+fi
+source <(curl -fsSL ${BASE_URL}/misc/build.func)
 # Copyright (c) 2025 community-scripts ORG
 # Author: Michael McGarrah (mcgarrah)
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
