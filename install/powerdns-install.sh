@@ -263,7 +263,7 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   
   # Build frontend assets (following Dockerfile process)
   cd /opt/powerdns-admin
-  sudo -u powerdns-admin yarn install --frozen-lockfile || sudo -u powerdns-admin yarn install
+  sudo -u powerdns-admin yarn install
   sudo -u powerdns-admin yarn cache clean
   
   # Modify assets.py to remove cssrewrite (as done in Dockerfile)
