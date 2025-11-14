@@ -99,17 +99,11 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   # Allow binding webserver to chosen address via PDNS_WEB_BIND env var (default all interfaces)
   PDNS_WEB_BIND=${PDNS_WEB_BIND:-0.0.0.0}
   if [[ "$PDNS_WEB_BIND" == "0.0.0.0" ]]; then
-    msg_info "PowerDNS API will bind to all interfaces (0.0.0.0) - secured with HTTPS and API key"
+    msg_info "PowerDNS API will bind to all interfaces (0.0.0.0) - secured with API key"
   fi
 
   # Generate secure API key and store it
   PDNS_API_KEY=$(openssl rand -hex 32)
-  
-  # Generate self-signed certificate for HTTPS API
-  mkdir -p /etc/powerdns/ssl
-  openssl req -x509 -newkey rsa:4096 -keyout /etc/powerdns/ssl/server.key -out /etc/powerdns/ssl/server.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=PowerDNS/CN=$(hostname -f)"
-  chown -R pdns:pdns /etc/powerdns/ssl
-  chmod 600 /etc/powerdns/ssl/server.key
   
   cat <<EOF >/etc/powerdns/pdns.conf
 launch=gsqlite3
@@ -117,14 +111,82 @@ gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
 # Enable the API so pdnsutil can manage zones
 api=yes
 api-key=${PDNS_API_KEY}
-# HTTPS webserver with SSL
+# HTTP webserver (localhost only, proxied by nginx)
 webserver=yes
-webserver-address=${PDNS_WEB_BIND}
-webserver-port=8443
-webserver-cert-file=/etc/powerdns/ssl/server.crt
-webserver-key-file=/etc/powerdns/ssl/server.key
+webserver-address=127.0.0.1
+webserver-port=8081
 webserver-password=
 EOF
+  
+  # Install and configure nginx for SSL termination
+  $STD apt-get install -y nginx
+  
+  # Generate self-signed certificate for HTTPS
+  mkdir -p /etc/nginx/ssl
+  if ! openssl req -x509 -newkey rsa:4096 -keyout /etc/nginx/ssl/powerdns.key -out /etc/nginx/ssl/powerdns.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=PowerDNS/CN=$(hostname -f)"; then
+    msg_error "SSL certificate generation failed"
+    exit 1
+  fi
+  
+  # Verify certificate files were created
+  if [[ ! -f /etc/nginx/ssl/powerdns.crt ]] || [[ ! -f /etc/nginx/ssl/powerdns.key ]]; then
+    msg_error "SSL certificate files not found after generation"
+    exit 1
+  fi
+  
+  chmod 600 /etc/nginx/ssl/powerdns.key
+  
+  # Configure nginx reverse proxy
+  cat <<EOF >/etc/nginx/sites-available/powerdns-api
+server {
+    listen ${PDNS_WEB_BIND}:8443 ssl;
+    server_name _;
+    
+    ssl_certificate /etc/nginx/ssl/powerdns.crt;
+    ssl_certificate_key /etc/nginx/ssl/powerdns.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Disable nginx buffering for API responses
+    proxy_buffering off;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-API-Key \$http_x_api_key;
+        
+        # Ensure JSON content type is preserved
+        proxy_set_header Accept application/json;
+        proxy_set_header Content-Type application/json;
+        
+        # Timeout settings
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+    }
+}
+EOF
+  
+  # Enable the site
+  ln -sf /etc/nginx/sites-available/powerdns-api /etc/nginx/sites-enabled/
+  rm -f /etc/nginx/sites-enabled/default
+  
+  # Test nginx configuration before starting
+  if ! nginx -t; then
+    msg_error "Nginx configuration test failed"
+    exit 1
+  fi
+  
+  systemctl enable --now nginx
+  
+  # Verify nginx started successfully
+  if ! systemctl --quiet is-active nginx; then
+    msg_error "Nginx failed to start"
+    exit 1
+  fi
   
   # Secure the config file
   chmod 640 /etc/powerdns/pdns.conf
@@ -133,8 +195,24 @@ EOF
   # Initialize the SQLite database
   msg_info "Initializing SQLite database"
   if [[ ! -f /var/lib/powerdns/pdns.sqlite3 ]]; then
-    sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql
+    # Verify schema file exists
+    if [[ ! -f /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql ]]; then
+      msg_error "SQLite schema file not found"
+      exit 1
+    fi
+    
+    if ! sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql; then
+      msg_error "SQLite database initialization failed"
+      exit 1
+    fi
+    
     chown pdns:pdns /var/lib/powerdns/pdns.sqlite3
+    
+    # Verify database was created successfully
+    if [[ ! -f /var/lib/powerdns/pdns.sqlite3 ]]; then
+      msg_error "SQLite database file not created"
+      exit 1
+    fi
   fi
 
   msg_info "Enabling and starting pdns"
@@ -437,12 +515,10 @@ fi
 
 # Display API information for authoritative installations
 if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
-  echo -e "${TAB}PowerDNS API URL: https://127.0.0.1:8443/"
+  echo -e "\n${INFO}For PowerDNS-Admin integration:"
+  echo -e "${TAB}PowerDNS API URL: http://127.0.0.1:8081/"
   echo -e "${TAB}PowerDNS API Key: ${PDNS_API_KEY}"
-  echo -e "${TAB}PowerDNS Version: 4.7.0"
-  # Display certificate fingerprint
-  CERT_FINGERPRINT=$(openssl x509 -in /etc/powerdns/ssl/server.crt -fingerprint -sha256 -noout | cut -d= -f2)
-  echo -e "${TAB}SSL Certificate Fingerprint: ${CERT_FINGERPRINT}"
+  echo -e "${TAB}PowerDNS Version: 4.7.0\n"
 fi
 
 # Display usage instructions
@@ -458,6 +534,21 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   echo -e "\n${INFO}For Proxmox SDN integration:"
   echo -e "${TAB}ID: powerdns"
   echo -e "${TAB}API Key: ${PDNS_API_KEY}"
-  echo -e "${TAB}URL: https://$(hostname -I | awk '{print $1}'):8443/"
+  # Get IP address with error handling
+  if SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') && [[ -n "$SERVER_IP" ]]; then
+    echo -e "${TAB}URL: https://${SERVER_IP}:8443/api/v1/servers/localhost"
+  else
+    echo -e "${TAB}URL: https://[YOUR_SERVER_IP]:8443/api/v1/servers/localhost"
+  fi
   echo -e "${TAB}TTL: 300"
+  # Display certificate fingerprint with error handling
+  if [[ -f /etc/nginx/ssl/powerdns.crt ]]; then
+    if CERT_FINGERPRINT=$(openssl x509 -in /etc/nginx/ssl/powerdns.crt -fingerprint -sha256 -noout 2>/dev/null | cut -d= -f2) && [[ -n "$CERT_FINGERPRINT" ]]; then
+      echo -e "${TAB}Fingerprint: ${CERT_FINGERPRINT}"
+    else
+      echo -e "${TAB}Fingerprint: [Error reading certificate]"
+    fi
+  else
+    echo -e "${TAB}Fingerprint: [Certificate file not found]"
+  fi
 fi

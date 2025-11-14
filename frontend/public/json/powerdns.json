@@ -8,7 +8,7 @@
     "type": "ct",
     "updateable": true,
     "privileged": false,
-    "interface_port": 8443,
+    "interface_port": 8081,
     "web_interface_port": 9191,
     "documentation": "https://docs.powerdns.com/",
     "website": "https://www.powerdns.com/",
@@ -52,7 +52,7 @@
                 "0.0.0.0"
             ],
             "default": "0.0.0.0",
-            "description": "PowerDNS API bind address. Use 0.0.0.0 for external access (secured with HTTPS and API key), 127.0.0.1 for localhost only."
+            "description": "PowerDNS API bind address. Use 0.0.0.0 for external access (secured with API key), 127.0.0.1 for localhost only."
         },
         "private_zone": {
             "type": "string",
@@ -174,7 +174,7 @@
             "type": "info"
         },
         {
-            "text": "Security: PDNS_WEB_BIND defaults to 0.0.0.0 for convenience but is secured with HTTPS and API key authentication. For additional security, set to 127.0.0.1 for localhost-only access.",
+            "text": "Security: PDNS_WEB_BIND defaults to 0.0.0.0 for convenience but is secured with API key authentication. For additional security, set to 127.0.0.1 for localhost-only access.",
             "type": "warning"
         },
         {
@@ -182,13 +182,10 @@
             "type": "info"
         },
         {
-            "text": "Port configuration: When both authoritative and recursor are installed together, authoritative server runs on port 53 and recursor on port 5353 to prevent conflicts. PowerDNS API runs on HTTPS port 8443 (all interfaces), web interface on port 9191.",
+            "text": "Port configuration: When both authoritative and recursor are installed together, authoritative server runs on port 53 and recursor on port 5353 to prevent conflicts. PowerDNS API runs on HTTP port 8081, web interface on port 9191.",
             "type": "info"
         },
-        {
-            "text": "SSL Certificate: A self-signed certificate is automatically generated for HTTPS API access on port 8443. The certificate fingerprint is displayed during installation for verification. API is secured with both SSL and API key authentication.",
-            "type": "info"
-        }
+
     ],
     "long_description": "This feature creates a Debian-based LXC that installs PowerDNS. The installer supports authoritative (sqlite), recursor, or both roles. It's intended for small/home deployments and testing; for production see notes about backends and security.",
     "quick_notes": [
@@ -205,7 +202,7 @@
         {
             "title": "Check services from host (replace CTID)",
             "command": "pct exec CTID -- systemctl status pdns && pct exec CTID -- systemctl status pdns-recursor && pct exec CTID -- pdnsutil list-zones",
-            "notes": "Verify services and sample zones. API available on HTTPS (all interfaces:8443) with self-signed certificate."
+            "notes": "Verify services and sample zones. API available on HTTP (configurable interface:8081) secured with API key."
         },
         {
             "title": "Access PowerDNS-Admin web interface",
