@@ -261,16 +261,26 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   # Install Python dependencies (SQLite-only)
   sudo -u powerdns-admin ./venv/bin/pip install --use-pep517 -r requirements.txt
   
-  # Build frontend assets using npm
-  cd /opt/powerdns-admin
+  # Install frontend dependencies manually to ensure they exist
+  cd /opt/powerdns-admin/powerdnsadmin/static
+  
+  # Copy the correct package.json from the repository root to static directory
+  sudo -u powerdns-admin cp /opt/powerdns-admin/package.json /opt/powerdns-admin/powerdnsadmin/static/package.json
+  
+  # Install npm packages
   sudo -u powerdns-admin npm install
-  sudo -u powerdns-admin npm cache clean --force
+  
+  # Verify critical files exist after npm install
+  if [[ ! -f "node_modules/@fortawesome/fontawesome-free/css/all.css" ]]; then
+    msg_warn "FontAwesome CSS not found after npm install"
+  fi
   
   # Modify assets.py to remove cssrewrite (as done in Dockerfile)
   sed -i -r -e "s|'rcssmin',\s?'cssrewrite'|'rcssmin'|g" /opt/powerdns-admin/powerdnsadmin/assets.py
   
   # Build Flask assets
-  sudo -u powerdns-admin FLASK_APP=/opt/powerdns-admin/powerdnsadmin/__init__.py ./venv/bin/flask assets build
+  cd /opt/powerdns-admin
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask assets build || msg_warn "Asset build failed, but continuing with installation"
   
   # Generate secure Flask secret key
   FLASK_SECRET_KEY=$(openssl rand -hex 32)
