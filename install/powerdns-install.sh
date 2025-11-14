@@ -184,7 +184,7 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   
   # Install system dependencies (SQLite-only, no MariaDB/PostgreSQL)
   $STD apt-get update
-  $STD apt-get install -y python3 python3-pip python3-venv git build-essential pkg-config
+  $STD apt-get install -y sudo python3 python3-pip python3-venv git build-essential pkg-config
   $STD apt-get install -y libffi-dev libxml2-dev libldap2-dev libsasl2-dev libssl-dev libxmlsec1-dev
   $STD apt-get install -y nodejs npm yarn
   
