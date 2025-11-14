@@ -44,8 +44,97 @@
             "type": "boolean",
             "default": false,
             "description": "Install PowerDNS-Admin web interface for easier DNS management (requires 1GB+ RAM, adds ~500MB disk)"
+        },
+        "pdns_web_bind": {
+            "type": "string",
+            "enum": [
+                "127.0.0.1",
+                "0.0.0.0"
+            ],
+            "default": "127.0.0.1",
+            "description": "PowerDNS API bind address. Use 0.0.0.0 for external access (security risk), 127.0.0.1 for localhost only."
+        },
+        "private_zone": {
+            "type": "string",
+            "default": "home.local",
+            "description": "Private zone to create automatically (authoritative only). Leave empty to skip."
+        },
+        "public_zone": {
+            "type": "string",
+            "default": "",
+            "description": "Public zone to create automatically (authoritative only). Leave empty to skip."
+        },
+        "recursor_allow": {
+            "type": "string",
+            "default": "192.168.0.0/16",
+            "description": "Networks allowed to query the recursor (CIDR format)."
+        },
+        "forward_choice": {
+            "type": "boolean",
+            "default": false,
+            "description": "Configure zone forwarding from recursor to authoritative server."
+        },
+        "forward_domain": {
+            "type": "string",
+            "default": "",
+            "description": "Domain to forward (if forwarding enabled)."
+        },
+        "forward_ip": {
+            "type": "string",
+            "default": "",
+            "description": "IP address to forward domain queries to (if forwarding enabled)."
         }
     },
+    "interactive_prompts": [
+        {
+            "name": "PowerDNS Role Selection",
+            "description": "Choose installation type",
+            "prompt": "Install PowerDNS as (a)uthoritative, (r)ecursor, or (b)oth? [a/r/b]",
+            "default": "a"
+        },
+        {
+            "name": "Web Interface Installation",
+            "description": "Install PowerDNS-Admin web interface (authoritative only)",
+            "prompt": "Install PowerDNS-Admin web interface? [y/N]",
+            "default": "N",
+            "conditional": "role == 'a' || role == 'b'"
+        },
+        {
+            "name": "API Bind Address",
+            "description": "PowerDNS API network binding",
+            "prompt": "Bind PowerDNS API to all interfaces (0.0.0.0) or localhost only (127.0.0.1)? [0.0.0.0/127.0.0.1]",
+            "default": "0.0.0.0",
+            "conditional": "install_webui == 'y' || install_webui == 'yes'"
+        },
+        {
+            "name": "Private Zone Creation",
+            "description": "Create default private zone (authoritative only)",
+            "prompt": "Create private zone? Enter zone name or press Enter to skip [home.local]",
+            "default": "home.local",
+            "conditional": "role == 'a' || role == 'b'"
+        },
+        {
+            "name": "Public Zone Creation",
+            "description": "Create public zone (authoritative only)",
+            "prompt": "Create public zone? Enter zone name or press Enter to skip []",
+            "default": "",
+            "conditional": "role == 'a' || role == 'b'"
+        },
+        {
+            "name": "Recursor Allow Networks",
+            "description": "Networks allowed to query recursor",
+            "prompt": "Enter allowed networks for recursor queries [192.168.0.0/16]",
+            "default": "192.168.0.0/16",
+            "conditional": "role == 'r' || role == 'b'"
+        },
+        {
+            "name": "Zone Forwarding",
+            "description": "Configure zone forwarding (recursor only)",
+            "prompt": "Configure zone forwarding to authoritative server? [y/N]",
+            "default": "N",
+            "conditional": "role == 'r' || role == 'b'"
+        }
+    ],
     "examples": [
         {
             "title": "Interactive creation",

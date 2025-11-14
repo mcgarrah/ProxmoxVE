@@ -28,6 +28,45 @@ case "$ROLE" in
   *) ROLE="a" ;;
 esac
 
+# Ask about PowerDNS-Admin web interface for authoritative installations
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]] && [[ -z "$INSTALL_WEBUI" ]]; then
+  read -r -p "Install PowerDNS-Admin web interface? [y/N] " INSTALL_WEBUI
+  
+  # If web interface is chosen, ask about API bind address
+  if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ -z "$PDNS_WEB_BIND" ]]; then
+    read -r -p "Bind PowerDNS API to all interfaces (0.0.0.0) or localhost only (127.0.0.1)? [0.0.0.0/127.0.0.1] " PDNS_WEB_BIND
+    PDNS_WEB_BIND=${PDNS_WEB_BIND:-0.0.0.0}
+  fi
+fi
+
+# Ask about zone creation for authoritative installations
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]] && [[ -z "$PRIVATE_ZONE" ]]; then
+  read -r -p "Create private zone? Enter zone name or press Enter to skip [home.local] " PRIVATE_ZONE
+  PRIVATE_ZONE=${PRIVATE_ZONE:-home.local}
+fi
+
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]] && [[ -z "$PUBLIC_ZONE" ]]; then
+  read -r -p "Create public zone? Enter zone name or press Enter to skip [] " PUBLIC_ZONE
+fi
+
+# Ask about recursor configuration
+if [[ "$ROLE" == "r" || "$ROLE" == "b" ]] && [[ -z "$RECURSOR_ALLOW" ]]; then
+  read -r -p "Enter allowed networks for recursor queries [192.168.0.0/16] " RECURSOR_ALLOW
+  RECURSOR_ALLOW=${RECURSOR_ALLOW:-192.168.0.0/16}
+fi
+
+if [[ "$ROLE" == "r" || "$ROLE" == "b" ]] && [[ -z "$FORWARD_CHOICE" ]]; then
+  read -r -p "Configure zone forwarding to authoritative server? [y/N] " FORWARD_CHOICE
+  if [[ "${FORWARD_CHOICE,,}" =~ ^(y|yes)$ ]]; then
+    if [[ -z "$FORWARD_DOMAIN" ]]; then
+      read -r -p "Enter domain to forward (e.g., home.local): " FORWARD_DOMAIN
+    fi
+    if [[ -z "$FORWARD_IP" ]]; then
+      read -r -p "Enter IP address to forward to (e.g., 192.168.1.10): " FORWARD_IP
+    fi
+  fi
+fi
+
 if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   msg_info "PowerDNS Authoritative: preflight checks"
   SKIP_PDNS_INSTALL=0
@@ -211,7 +250,7 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   
   # Build frontend assets (following Dockerfile process)
   cd /opt/powerdns-admin
-  sudo -u powerdns-admin yarn install --pure-lockfile --production
+  sudo -u powerdns-admin yarn install --production --frozen-lockfile || sudo -u powerdns-admin yarn install --production
   sudo -u powerdns-admin yarn cache clean
   
   # Modify assets.py to remove cssrewrite (as done in Dockerfile)
