@@ -32,7 +32,7 @@ var_vlan="${var_vlan:-}"
 var_unprivileged="${var_unprivileged:-0}"
 # Disable VAAPI prompts (not relevant for PowerDNS)
 NO_VAAPI="1"
-# Set install URL if provided
+# Set install URL if provided (used for development)
 var_install_url="${var_install_url:-}"
 
 # PowerDNS specific configuration
