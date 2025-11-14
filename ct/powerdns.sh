@@ -29,9 +29,7 @@ var_bridge="${var_bridge:-}"
 var_ip="${var_ip:-}"
 var_gw="${var_gw:-}"
 var_vlan="${var_vlan:-}"
-var_unprivileged="${var_unprivileged:-0}"
-# Disable VAAPI prompts (not relevant for PowerDNS)
-NO_VAAPI="1"
+var_unprivileged="${var_unprivileged:-1}"
 # Set install URL if provided (used for development)
 var_install_url="${var_install_url:-}"
 
@@ -76,7 +74,6 @@ export var_gw
 export var_vlan
 export var_unprivileged
 export var_install_url
-export NO_VAAPI
 
 # Export PowerDNS configuration
 export ROLE
