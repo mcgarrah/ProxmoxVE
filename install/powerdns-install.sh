@@ -320,6 +320,36 @@ EOF
   cd /opt/powerdns-admin
   sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask db upgrade || true
   
+  # Create default admin user (admin/admin)
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/flask user create-user --username admin --email admin@example.com --firstname Admin --lastname User --password admin --admin || msg_warn "Admin user creation failed or user already exists"
+  
+  # Configure PowerDNS server connection automatically
+  sudo -u powerdns-admin FLASK_APP=powerdnsadmin ./venv/bin/python3 -c "
+import sys
+sys.path.insert(0, '/opt/powerdns-admin')
+from powerdnsadmin import create_app
+from powerdnsadmin.models.server import Server
+from powerdnsadmin.models.setting import Setting
+
+app = create_app()
+with app.app_context():
+    # Check if server already exists
+    existing_server = Server.query.filter_by(name='localhost').first()
+    if not existing_server:
+        # Create PowerDNS server entry
+        server = Server(
+            name='localhost',
+            host='127.0.0.1',
+            port=8081,
+            version='4.7.0',
+            api_key='${PDNS_API_KEY}'
+        )
+        server.create()
+        print('PowerDNS server configured successfully')
+    else:
+        print('PowerDNS server already configured')
+" || msg_warn "PowerDNS server configuration failed"
+  
   # Use the existing run.py from the repository
   # Create wrapper script to load custom config
   cat <<EOF >/opt/powerdns-admin/start.py
@@ -385,15 +415,37 @@ $STD apt-get -y autoclean
 msg_ok "Cleaned"
 
 echo -e "\n${INFO}PowerDNS installation complete.\n"
-if [[ "$ROLE" == "a" ]]; then
+
+# Display services based on role
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   echo -e "${TAB}Authoritative server running on port 53"
-  echo -e "${TAB}Use pdnsutil to add zones and records (pdnsutil help)"
-elif [[ "$ROLE" == "r" ]]; then
+fi
+if [[ "$ROLE" == "r" ]]; then
   echo -e "${TAB}Recursor running on port 53"
-  echo -e "${TAB}Edit /etc/powerdns/recursor.conf to adjust ACLs and forward-zones as needed"
 elif [[ "$ROLE" == "b" ]]; then
-  echo -e "${TAB}Authoritative server running on port 53"
   echo -e "${TAB}Recursor running on port 5353"
-  echo -e "${TAB}Use pdnsutil to manage authoritative zones"
-  echo -e "${TAB}Edit /etc/powerdns/recursor.conf to adjust recursor settings"
+fi
+
+# Display API information for authoritative installations
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
+  echo -e "${TAB}PowerDNS API URL: http://127.0.0.1:8081/"
+  echo -e "${TAB}PowerDNS API Key: ${PDNS_API_KEY}"
+  echo -e "${TAB}PowerDNS Version: 4.7.0"
+fi
+
+# Display usage instructions
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
+  echo -e "${TAB}Use pdnsutil to add zones and records (pdnsutil help)"
+fi
+if [[ "$ROLE" == "r" || "$ROLE" == "b" ]]; then
+  echo -e "${TAB}Edit /etc/powerdns/recursor.conf to adjust ACLs and forward-zones as needed"
+fi
+
+# Display Proxmox SDN integration info for authoritative installations
+if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
+  echo -e "\n${INFO}For Proxmox SDN integration:"
+  echo -e "${TAB}ID: powerdns"
+  echo -e "${TAB}API Key: ${PDNS_API_KEY}"
+  echo -e "${TAB}URL: http://$(hostname -I | awk '{print $1}'):8081/"
+  echo -e "${TAB}TTL: 300"
 fi
