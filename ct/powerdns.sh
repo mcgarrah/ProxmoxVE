@@ -2,7 +2,8 @@
 # shellcheck disable=SC1090,SC1091
 # Set base URL for repository access
 if [ -n "$var_install_url" ]; then
-  BASE_URL="$(dirname "$var_install_url")"
+  # var_install_url should be the base repo URL, not including /install
+  BASE_URL="$var_install_url"
 else
   BASE_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
 fi
