@@ -372,6 +372,14 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   # Generate secure Flask secret key
   FLASK_SECRET_KEY=$(openssl rand -hex 32)
   
+  # Detect PowerDNS version from installed package
+  if PDNS_VERSION=$(dpkg-query -W -f='${Version}' pdns-server 2>/dev/null | cut -d'-' -f1) && [[ -n "$PDNS_VERSION" ]]; then
+    msg_info "Detected PowerDNS version: $PDNS_VERSION"
+  else
+    PDNS_VERSION="4.7.0"
+    msg_warn "Could not detect PowerDNS version, using default: $PDNS_VERSION"
+  fi
+  
   # Create custom config for our installation
   cat <<EOF >/opt/powerdns-admin/configs/local_config.py
 # Local PowerDNS-Admin configuration
@@ -387,7 +395,7 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 PDNS_STATS_URL = 'http://127.0.0.1:8081'
 PDNS_API_URL = 'http://127.0.0.1:8081'
 PDNS_API_KEY = '${PDNS_API_KEY}'
-PDNS_VERSION = '4.7.0'
+PDNS_VERSION = '${PDNS_VERSION}'
 
 # Basic settings
 BASIC_ENABLED = True
@@ -428,7 +436,7 @@ with app.app_context():
             name='localhost',
             host='127.0.0.1',
             port=8081,
-            version='4.7.0',
+            version='${PDNS_VERSION}',
             api_key='${PDNS_API_KEY}'
         )
         server.create()
@@ -518,7 +526,12 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   echo -e "\n${INFO}For PowerDNS-Admin integration:"
   echo -e "${TAB}PowerDNS API URL: http://127.0.0.1:8081/"
   echo -e "${TAB}PowerDNS API Key: ${PDNS_API_KEY}"
-  echo -e "${TAB}PowerDNS Version: 4.7.0\n"
+  # Detect PowerDNS version for display
+  if DISPLAY_VERSION=$(dpkg-query -W -f='${Version}' pdns-server 2>/dev/null | cut -d'-' -f1) && [[ -n "$DISPLAY_VERSION" ]]; then
+    echo -e "${TAB}PowerDNS Version: ${DISPLAY_VERSION}\n"
+  else
+    echo -e "${TAB}PowerDNS Version: [Unable to detect]\n"
+  fi
 fi
 
 # Display usage instructions
