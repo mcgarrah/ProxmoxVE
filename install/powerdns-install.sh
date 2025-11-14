@@ -96,14 +96,20 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   mkdir -p /var/lib/powerdns
   chown -R pdns:pdns /var/lib/powerdns || true
 
-  # Allow binding webserver to chosen address via PDNS_WEB_BIND env var (default local-only)
-  PDNS_WEB_BIND=${PDNS_WEB_BIND:-127.0.0.1}
+  # Allow binding webserver to chosen address via PDNS_WEB_BIND env var (default all interfaces)
+  PDNS_WEB_BIND=${PDNS_WEB_BIND:-0.0.0.0}
   if [[ "$PDNS_WEB_BIND" == "0.0.0.0" ]]; then
-    msg_warn "You chose to bind the PowerDNS webserver to 0.0.0.0 — ensure this is intentional and secure."
+    msg_info "PowerDNS API will bind to all interfaces (0.0.0.0) - secured with HTTPS and API key"
   fi
 
   # Generate secure API key and store it
   PDNS_API_KEY=$(openssl rand -hex 32)
+  
+  # Generate self-signed certificate for HTTPS API
+  mkdir -p /etc/powerdns/ssl
+  openssl req -x509 -newkey rsa:4096 -keyout /etc/powerdns/ssl/server.key -out /etc/powerdns/ssl/server.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=PowerDNS/CN=$(hostname -f)"
+  chown -R pdns:pdns /etc/powerdns/ssl
+  chmod 600 /etc/powerdns/ssl/server.key
   
   cat <<EOF >/etc/powerdns/pdns.conf
 launch=gsqlite3
@@ -111,10 +117,13 @@ gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
 # Enable the API so pdnsutil can manage zones
 api=yes
 api-key=${PDNS_API_KEY}
-# Webserver; bind address default is local-only for safety
+# HTTPS webserver with SSL
 webserver=yes
 webserver-address=${PDNS_WEB_BIND}
-webserver-port=8081
+webserver-port=8443
+webserver-cert-file=/etc/powerdns/ssl/server.crt
+webserver-key-file=/etc/powerdns/ssl/server.key
+webserver-password=
 EOF
   
   # Secure the config file
@@ -428,9 +437,12 @@ fi
 
 # Display API information for authoritative installations
 if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
-  echo -e "${TAB}PowerDNS API URL: http://127.0.0.1:8081/"
+  echo -e "${TAB}PowerDNS API URL: https://127.0.0.1:8443/"
   echo -e "${TAB}PowerDNS API Key: ${PDNS_API_KEY}"
   echo -e "${TAB}PowerDNS Version: 4.7.0"
+  # Display certificate fingerprint
+  CERT_FINGERPRINT=$(openssl x509 -in /etc/powerdns/ssl/server.crt -fingerprint -sha256 -noout | cut -d= -f2)
+  echo -e "${TAB}SSL Certificate Fingerprint: ${CERT_FINGERPRINT}"
 fi
 
 # Display usage instructions
@@ -446,6 +458,6 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
   echo -e "\n${INFO}For Proxmox SDN integration:"
   echo -e "${TAB}ID: powerdns"
   echo -e "${TAB}API Key: ${PDNS_API_KEY}"
-  echo -e "${TAB}URL: http://$(hostname -I | awk '{print $1}'):8081/"
+  echo -e "${TAB}URL: https://$(hostname -I | awk '{print $1}'):8443/"
   echo -e "${TAB}TTL: 300"
 fi

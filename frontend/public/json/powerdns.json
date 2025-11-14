@@ -8,7 +8,7 @@
     "type": "ct",
     "updateable": true,
     "privileged": false,
-    "interface_port": 8081,
+    "interface_port": 8443,
     "web_interface_port": 9191,
     "documentation": "https://docs.powerdns.com/",
     "website": "https://www.powerdns.com/",
@@ -51,8 +51,8 @@
                 "127.0.0.1",
                 "0.0.0.0"
             ],
-            "default": "127.0.0.1",
-            "description": "PowerDNS API bind address. Use 0.0.0.0 for external access (security risk), 127.0.0.1 for localhost only."
+            "default": "0.0.0.0",
+            "description": "PowerDNS API bind address. Use 0.0.0.0 for external access (secured with HTTPS and API key), 127.0.0.1 for localhost only."
         },
         "private_zone": {
             "type": "string",
@@ -174,7 +174,7 @@
             "type": "info"
         },
         {
-            "text": "Security: PDNS_WEB_BIND defaults to 127.0.0.1 to avoid exposing the API. Binding to 0.0.0.0 is dangerous unless protected by a firewall/reverse-proxy with TLS and auth.",
+            "text": "Security: PDNS_WEB_BIND defaults to 0.0.0.0 for convenience but is secured with HTTPS and API key authentication. For additional security, set to 127.0.0.1 for localhost-only access.",
             "type": "warning"
         },
         {
@@ -182,7 +182,11 @@
             "type": "info"
         },
         {
-            "text": "Port configuration: When both authoritative and recursor are installed together, authoritative server runs on port 53 and recursor on port 5353 to prevent conflicts. PowerDNS API runs on port 8081, web interface on port 9191.",
+            "text": "Port configuration: When both authoritative and recursor are installed together, authoritative server runs on port 53 and recursor on port 5353 to prevent conflicts. PowerDNS API runs on HTTPS port 8443 (all interfaces), web interface on port 9191.",
+            "type": "info"
+        },
+        {
+            "text": "SSL Certificate: A self-signed certificate is automatically generated for HTTPS API access on port 8443. The certificate fingerprint is displayed during installation for verification. API is secured with both SSL and API key authentication.",
             "type": "info"
         }
     ],
@@ -201,7 +205,7 @@
         {
             "title": "Check services from host (replace CTID)",
             "command": "pct exec CTID -- systemctl status pdns && pct exec CTID -- systemctl status pdns-recursor && pct exec CTID -- pdnsutil list-zones",
-            "notes": "Verify services and sample zones. When both are installed: authoritative on port 53, recursor on port 5353."
+            "notes": "Verify services and sample zones. API available on HTTPS (all interfaces:8443) with self-signed certificate."
         },
         {
             "title": "Access PowerDNS-Admin web interface",
@@ -237,7 +241,7 @@
         }
     },
     "web_binding": {
-        "default_bind": "127.0.0.1",
+        "default_bind": "0.0.0.0",
         "env_var": "PDNS_WEB_BIND",
         "example_expose": "PDNS_WEB_BIND=0.0.0.0 ROLE=authoritative bash ct/powerdns.sh",
         "warning": "Binding to 0.0.0.0 exposes the PDNS API and webserver to any network the container can reach. Even with an API key, this is a security risk on untrusted networks. Use firewall rules, bind to a specific management interface, or run behind a reverse proxy with TLS/auth."
