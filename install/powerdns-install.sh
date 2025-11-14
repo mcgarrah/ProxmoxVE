@@ -238,7 +238,7 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   $STD apt-get update
   $STD apt-get install -y sudo python3 python3-pip python3-venv git build-essential pkg-config
   $STD apt-get install -y libffi-dev libxml2-dev libldap2-dev libsasl2-dev libssl-dev libxmlsec1-dev
-  $STD apt-get install -y nodejs npm yarn
+  $STD apt-get install -y nodejs npm
   
   # Create powerdns-admin user
   useradd --system --home /opt/powerdns-admin --shell /bin/bash powerdns-admin || true
@@ -261,10 +261,10 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
   # Install Python dependencies (SQLite-only)
   sudo -u powerdns-admin ./venv/bin/pip install --use-pep517 -r requirements.txt
   
-  # Build frontend assets (following Dockerfile process)
+  # Build frontend assets using npm
   cd /opt/powerdns-admin
-  sudo -u powerdns-admin yarn install
-  sudo -u powerdns-admin yarn cache clean
+  sudo -u powerdns-admin npm install
+  sudo -u powerdns-admin npm cache clean --force
   
   # Modify assets.py to remove cssrewrite (as done in Dockerfile)
   sed -i -r -e "s|'rcssmin',\s?'cssrewrite'|'rcssmin'|g" /opt/powerdns-admin/powerdnsadmin/assets.py
