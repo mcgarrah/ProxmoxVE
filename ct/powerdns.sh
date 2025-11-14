@@ -30,9 +30,11 @@ var_ip="${var_ip:-}"
 var_gw="${var_gw:-}"
 var_vlan="${var_vlan:-}"
 var_unprivileged="${var_unprivileged:-0}"
+# Disable VAAPI prompts (not relevant for PowerDNS)
+NO_VAAPI="1"
 
 # PowerDNS specific configuration
-ROLE="${ROLE:-a}"  # Default to authoritative
+ROLE="${ROLE:-}"  # Allow interactive prompt
 PRIVATE_ZONE="${PRIVATE_ZONE:-home.local}"  # Default private zone
 PUBLIC_ZONE="${PUBLIC_ZONE:-}"  # No default public zone
 PDNS_WEB_BIND="${PDNS_WEB_BIND:-127.0.0.1}"  # Default to localhost only
@@ -72,6 +74,7 @@ export var_gw
 export var_vlan
 export var_unprivileged
 export var_install_url
+export NO_VAAPI
 
 # Export PowerDNS configuration
 export ROLE
