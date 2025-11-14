@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC1091
+# Set install URL if provided (used for development) - must be set before sourcing build.func
+var_install_url="${var_install_url:-}"
+
 # Set base URL for repository access
 if [ -n "$var_install_url" ]; then
   # var_install_url should be the base repo URL, not including /install
@@ -37,8 +40,6 @@ var_ip="${var_ip:-}"
 var_gw="${var_gw:-}"
 var_vlan="${var_vlan:-}"
 var_unprivileged="${var_unprivileged:-1}"
-# Set install URL if provided (used for development)
-var_install_url="${var_install_url:-}"
 
 # PowerDNS specific configuration
 ROLE="${ROLE:-}"  # Allow interactive prompt
