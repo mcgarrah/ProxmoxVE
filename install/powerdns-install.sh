@@ -187,10 +187,18 @@ if [[ "$ROLE" == "r" || "$ROLE" == "b" ]]; then
   # Default allow-from as common LAN RFC1918 block; allow env var RECURSOR_ALLOW to prefill
   RECURSOR_ALLOW=${RECURSOR_ALLOW:-192.168.0.0/16}
 
-  # Basic recursor config
-    cat <<EOF >"${RECURSOR_CONF}"
+  # Basic recursor config - use different port if authoritative is also installed
+  if [[ "$ROLE" == "b" ]]; then
+    RECURSOR_PORT=5353
+    msg_info "Both authoritative and recursor selected - configuring recursor on port 5353"
+  else
+    RECURSOR_PORT=53
+  fi
+  
+  cat <<EOF >"${RECURSOR_CONF}"
 # Basic PowerDNS recursor config
 local-address=0.0.0.0
+local-port=${RECURSOR_PORT}
 allow-from=${RECURSOR_ALLOW}
 # Uncomment and set forward-zones if you want the recursor to forward specific zones
 # forward-zones=example.local=192.0.2.10
@@ -210,7 +218,12 @@ EOF
   msg_info "Enabling and starting pdns-recursor"
   systemctl enable --now pdns-recursor
   if systemctl --quiet is-active pdns-recursor; then
-    msg_ok "PowerDNS recursor installed and running"
+    if [[ "$ROLE" == "b" ]]; then
+      msg_ok "PowerDNS recursor installed and running on port 5353"
+      msg_info "Authoritative server on port 53, Recursor on port 5353"
+    else
+      msg_ok "PowerDNS recursor installed and running on port 53"
+    fi
   else
     msg_error "PowerDNS recursor did not start correctly; see journalctl -u pdns-recursor -n 50"
     journalctl -u pdns-recursor -n 50 --no-pager || true
@@ -362,5 +375,15 @@ $STD apt-get -y autoclean
 msg_ok "Cleaned"
 
 echo -e "\n${INFO}PowerDNS installation complete.\n"
-echo -e "${TAB}If you installed authoritative: use pdnsutil to add zones and records (pdnsutil help)."
-echo -e "${TAB}If you installed recursor: edit /etc/powerdns/recursor.conf to adjust ACLs and forward-zones as needed."
+if [[ "$ROLE" == "a" ]]; then
+  echo -e "${TAB}Authoritative server running on port 53"
+  echo -e "${TAB}Use pdnsutil to add zones and records (pdnsutil help)"
+elif [[ "$ROLE" == "r" ]]; then
+  echo -e "${TAB}Recursor running on port 53"
+  echo -e "${TAB}Edit /etc/powerdns/recursor.conf to adjust ACLs and forward-zones as needed"
+elif [[ "$ROLE" == "b" ]]; then
+  echo -e "${TAB}Authoritative server running on port 53"
+  echo -e "${TAB}Recursor running on port 5353"
+  echo -e "${TAB}Use pdnsutil to manage authoritative zones"
+  echo -e "${TAB}Edit /etc/powerdns/recursor.conf to adjust recursor settings"
+fi
