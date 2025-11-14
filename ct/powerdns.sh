@@ -18,7 +18,7 @@ source <(curl -fsSL ${BASE_URL}/misc/build.func)
 
 APP="PowerDNS"
 # shellcheck disable=SC2034
-var_install="${var_install:-powerdns-install}"
+var_install="${var_install:-powerdns}"
 # shellcheck disable=SC2034
 var_tags="${var_tags:-dns;powerdns}"
 var_ctid="${var_ctid:-}"
