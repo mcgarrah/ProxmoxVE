@@ -1354,7 +1354,7 @@ EOF'
 
   # Use custom install URL if provided, otherwise use default
   if [ -n "$var_install_url" ]; then
-    INSTALL_URL="${var_install_url}/${var_install}.sh"
+    INSTALL_URL="${var_install_url}/install/${var_install}.sh"
     echo "Using custom install URL: $INSTALL_URL"
   else
     INSTALL_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/install/${var_install}.sh"
