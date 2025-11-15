@@ -380,11 +380,74 @@ if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b
     msg_warn "Could not detect PowerDNS version, using default: $PDNS_VERSION"
   fi
   
-  # Create custom config for our installation
+  # Generate SSL certificate for PowerDNS-Admin HTTPS
+  mkdir -p /etc/nginx/ssl/powerdns-admin
+  if ! openssl req -x509 -newkey rsa:4096 -keyout /etc/nginx/ssl/powerdns-admin/powerdns-admin.key -out /etc/nginx/ssl/powerdns-admin/powerdns-admin.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=PowerDNS-Admin/CN=$(hostname -f)"; then
+    msg_error "PowerDNS-Admin SSL certificate generation failed"
+    exit 1
+  fi
+  
+  # Verify certificate files were created
+  if [[ ! -f /etc/nginx/ssl/powerdns-admin/powerdns-admin.crt ]] || [[ ! -f /etc/nginx/ssl/powerdns-admin/powerdns-admin.key ]]; then
+    msg_error "PowerDNS-Admin SSL certificate files not found after generation"
+    exit 1
+  fi
+  
+  chmod 600 /etc/nginx/ssl/powerdns-admin/powerdns-admin.key
+  
+  # Configure nginx reverse proxy for PowerDNS-Admin HTTPS
+  cat <<EOF >/etc/nginx/sites-available/powerdns-admin
+server {
+    listen 9443 ssl;
+    server_name _;
+    
+    ssl_certificate /etc/nginx/ssl/powerdns-admin/powerdns-admin.crt;
+    ssl_certificate_key /etc/nginx/ssl/powerdns-admin/powerdns-admin.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    
+    location / {
+        proxy_pass http://127.0.0.1:9191;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # WebSocket support for real-time updates
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Timeout settings
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+}
+EOF
+  
+  # Enable PowerDNS-Admin nginx site
+  ln -sf /etc/nginx/sites-available/powerdns-admin /etc/nginx/sites-enabled/
+  
+  # Test nginx configuration
+  if ! nginx -t; then
+    msg_error "Nginx configuration test failed for PowerDNS-Admin"
+    exit 1
+  fi
+  
+  # Reload nginx to apply PowerDNS-Admin configuration
+  systemctl reload nginx
+  
+  # Create custom config for our installation (bind to localhost only)
   cat <<EOF >/opt/powerdns-admin/configs/local_config.py
 # Local PowerDNS-Admin configuration
 SECRET_KEY = '${FLASK_SECRET_KEY}'
-BIND_ADDRESS = '0.0.0.0'
+BIND_ADDRESS = '127.0.0.1'
 PORT = 9191
 
 # Database - SQLite
@@ -480,7 +543,7 @@ User=powerdns-admin
 Group=powerdns-admin
 WorkingDirectory=/opt/powerdns-admin
 Environment=POWERDNS_ADMIN_CONFIG=/opt/powerdns-admin/configs/local_config.py
-ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --bind 0.0.0.0:9191 --workers 2 start:app
+ExecStart=/opt/powerdns-admin/venv/bin/gunicorn --bind 127.0.0.1:9191 --workers 2 start:app
 Restart=always
 RestartSec=3
 
@@ -493,8 +556,12 @@ EOF
   systemctl enable --now powerdns-admin
   
   if systemctl --quiet is-active powerdns-admin; then
-    msg_ok "PowerDNS-Admin installed and running on port 9191"
-    msg_info "Access PowerDNS-Admin at: http://$(hostname -I | awk '{print $1}'):9191"
+    msg_ok "PowerDNS-Admin installed and running on port 9191 (localhost only)"
+    if SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') && [[ -n "$SERVER_IP" ]]; then
+      msg_info "Access PowerDNS-Admin at: https://${SERVER_IP}:9443"
+    else
+      msg_info "Access PowerDNS-Admin at: https://[YOUR_SERVER_IP]:9443"
+    fi
     msg_info "Default login: admin / admin (change after first login)"
   else
     msg_error "PowerDNS-Admin failed to start; see journalctl -u powerdns-admin"
@@ -531,6 +598,29 @@ if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
     echo -e "${TAB}PowerDNS Version: ${DISPLAY_VERSION}\n"
   else
     echo -e "${TAB}PowerDNS Version: [Unable to detect]\n"
+  fi
+fi
+
+# Display PowerDNS-Admin web interface information
+if [[ "${INSTALL_WEBUI,,}" =~ ^(y|yes)$ ]] && [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
+  echo -e "${INFO}PowerDNS-Admin Web Interface:"
+  if SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') && [[ -n "$SERVER_IP" ]]; then
+    echo -e "${TAB}HTTPS URL: https://${SERVER_IP}:9443"
+  else
+    echo -e "${TAB}HTTPS URL: https://[YOUR_SERVER_IP]:9443"
+  fi
+  echo -e "${TAB}Username: admin"
+  echo -e "${TAB}Password: admin (change after first login)"
+  
+  # Display PowerDNS-Admin certificate fingerprint
+  if [[ -f /etc/nginx/ssl/powerdns-admin/powerdns-admin.crt ]]; then
+    if WEBUI_FINGERPRINT=$(openssl x509 -in /etc/nginx/ssl/powerdns-admin/powerdns-admin.crt -fingerprint -sha256 -noout 2>/dev/null | cut -d= -f2) && [[ -n "$WEBUI_FINGERPRINT" ]]; then
+      echo -e "${TAB}SSL Fingerprint: ${WEBUI_FINGERPRINT}\n"
+    else
+      echo -e "${TAB}SSL Fingerprint: [Error reading certificate]\n"
+    fi
+  else
+    echo -e "${TAB}SSL Fingerprint: [Certificate file not found]\n"
   fi
 fi
 
