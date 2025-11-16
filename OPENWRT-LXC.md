@@ -63,8 +63,18 @@ bash ct/openwrt-lxc.sh
 - [ ] Test container migration compatibility
 - [ ] Validate resource limits work properly
 
+## FAQ
+
+### Why Debian + OpenWRT chroot instead of pure OpenWRT container?
+- **Debian base:** Provides systemd, package management, stability
+- **OpenWRT chroot:** Gives full OpenWRT functionality and UCI config
+- **Best of both:** Container management + router capabilities
+- **Intel rootfs:** Uses x86_64 OpenWRT build optimized for virtualization
+
 ## Architecture Notes
-- **Base:** Debian 12 LXC container
-- **OpenWRT:** Runs in chroot environment at `/opt/openwrt`
+- **Base:** Debian 12 LXC container (provides systemd, package management)
+- **OpenWRT:** Intel x86_64 rootfs runs in chroot at `/opt/openwrt`
+- **Hybrid approach:** Debian host + OpenWRT chroot for best of both worlds
 - **Management:** systemd service controls OpenWRT lifecycle
 - **Network:** Default LAN 192.168.1.1/24, configurable via UCI
+- **Hardware acceleration:** Disabled (network-only container)

@@ -13,6 +13,8 @@ var_disk="${var_disk:-2}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-12}"
 var_unprivileged="${var_unprivileged:-0}"
+var_hwaccel="${var_hwaccel:-0}"
+var_vaapi="${var_vaapi:-0}"
 
 header_info "$APP"
 variables
