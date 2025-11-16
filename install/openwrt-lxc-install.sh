@@ -106,14 +106,29 @@ chmod +x /usr/local/bin/openwrt-start /usr/local/bin/openwrt-stop
 msg_ok "Configured OpenWrt service"
 
 msg_info "Setting up OpenWrt network configuration"
-# Initialize network configuration if it doesn't exist
-openwrt-chroot uci -q delete network.lan 2>/dev/null || true
-openwrt-chroot uci set network.lan=interface
-openwrt-chroot uci set network.lan.proto='static'
-openwrt-chroot uci set network.lan.ipaddr='192.168.1.1'
-openwrt-chroot uci set network.lan.netmask='255.255.255.0'
-openwrt-chroot uci set network.lan.device='eth0'
-openwrt-chroot uci commit network
+# Create network config file if it doesn't exist
+if [ ! -f /opt/openwrt/etc/config/network ]; then
+  cat > /opt/openwrt/etc/config/network << 'EOF'
+config interface 'loopback'
+	option ifname 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config interface 'lan'
+	option proto 'static'
+	option ipaddr '192.168.1.1'
+	option netmask '255.255.255.0'
+	option device 'eth0'
+EOF
+else
+  # Update existing config
+  openwrt-chroot uci set network.lan.proto='static'
+  openwrt-chroot uci set network.lan.ipaddr='192.168.1.1'
+  openwrt-chroot uci set network.lan.netmask='255.255.255.0'
+  openwrt-chroot uci set network.lan.device='eth0'
+  openwrt-chroot uci commit network
+fi
 
 # Enable and configure LuCI web interface
 openwrt-chroot uci set uhttpd.main.listen_http='0.0.0.0:80'
