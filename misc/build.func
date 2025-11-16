@@ -1194,7 +1194,6 @@ EOF
     "Ollama"
     "FileFlows"
     "Open WebUI"
-    "OpenWrt-LXC"
   )
 
   is_vaapi_app=false
@@ -1205,8 +1204,10 @@ EOF
     fi
   done
 
-  if ([ "$CT_TYPE" == "0" ] || [ "$is_vaapi_app" == "true" ]) &&
-    ([[ -e /dev/dri/renderD128 ]] || [[ -e /dev/dri/card0 ]] || [[ -e /dev/fb0 ]]); then
+  # Check VAAPI variables and hardware availability
+  if [ "${var_vaapi:-1}" != "0" ] && [ "${var_hwaccel:-1}" != "0" ] && 
+     ([ "$CT_TYPE" == "0" ] || [ "$is_vaapi_app" == "true" ]) &&
+     ([[ -e /dev/dri/renderD128 ]] || [[ -e /dev/dri/card0 ]] || [[ -e /dev/fb0 ]]); then
 
     echo ""
     msg_custom "⚙️ " "\e[96m" "Configuring VAAPI passthrough for LXC container"
