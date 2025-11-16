@@ -24,8 +24,20 @@ lxc.cap.keep: net_admin net_raw sys_module
 **Problem:** Security isolation lost defeats unprivileged purpose.
 
 ## Testing
+
+### Development Branch Testing
 ```bash
-# From checked out feature branch
+# From checked out feature branch - set REPO variable
+REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash ct/openwrt-lxc.sh
+
+# Or export first
+export REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc"
+bash ct/openwrt-lxc.sh
+```
+
+### Production Testing
+```bash
+# From upstream main branch
 bash ct/openwrt-lxc.sh
 ```
 
