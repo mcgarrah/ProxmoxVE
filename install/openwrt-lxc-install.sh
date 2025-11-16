@@ -136,10 +136,17 @@ openwrt-chroot uci set uhttpd.main.listen_https='0.0.0.0:443'
 openwrt-chroot uci commit uhttpd
 msg_ok "Configured OpenWrt network"
 
-msg_info "Enabling OpenWrt service"
-systemctl enable openwrt.service
-systemctl start openwrt.service
-msg_ok "Started OpenWrt service"
+msg_info "Setting up OpenWrt runtime directories"
+# Create missing runtime directories
+openwrt-chroot mkdir -p /var/lock
+openwrt-chroot mkdir -p /var/run
+msg_ok "Created OpenWrt runtime directories"
+
+msg_info "Starting OpenWrt services"
+# Start uhttpd manually since systemd service doesn't work in chroot
+openwrt-chroot /usr/sbin/uhttpd -f -p 0.0.0.0:80 -h /www &
+sleep 2
+msg_ok "Started OpenWrt web interface"
 
 msg_info "Creating convenience aliases"
 cat <<'EOF' >> /root/.bashrc
