@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
-source <(curl -s https://raw.githubusercontent.com/${REPO:-community-scripts/ProxmoxVE/main}/misc/build.func)
+# shellcheck disable=SC1090,SC1091
+# Set install URL if provided (used for development) - must be set before sourcing build.func
+var_install_url="${var_install_url:-}"
+
+# Set base URL for repository access
+if [ -n "$var_install_url" ]; then
+  # var_install_url should be the base repo URL, not including /install
+  BASE_URL="$var_install_url"
+elif [ -n "$REPO" ]; then
+  BASE_URL="https://raw.githubusercontent.com/$REPO"
+else
+  BASE_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+fi
+source <(curl -fsSL ${BASE_URL}/misc/build.func)
 # Copyright (c) 2021-2025 community-scripts ORG
 # Author: community-scripts
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
