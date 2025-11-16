@@ -1,0 +1,49 @@
+{
+  "name": "OpenWrt LXC",
+  "slug": "openwrt-lxc",
+  "categories": [
+    4,
+    2
+  ],
+  "date_created": "2025-01-27",
+  "type": "lxc",
+  "updateable": true,
+  "privileged": true,
+  "interface_port": 80,
+  "documentation": "https://openwrt.org/docs/start",
+  "website": "https://openwrt.org/",
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/openwrt.webp",
+  "config_path": "",
+  "description": "OpenWrt running in an LXC container - a powerful open-source firmware that provides advanced networking capabilities with lower resource overhead than a full VM. Perfect for routing, VPN, and network management tasks.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/openwrt-lxc.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 512,
+        "hdd": 2,
+        "os": "debian",
+        "version": "12"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "root",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "This container requires privileged mode for network interface management and kernel module access.",
+      "type": "warning"
+    },
+    {
+      "text": "Access the LuCI web interface at http://container-ip after installation completes.",
+      "type": "info"
+    },
+    {
+      "text": "Use 'openwrt' or 'owrt' command to access the OpenWrt shell environment.",
+      "type": "info"
+    }
+  ]
+}
