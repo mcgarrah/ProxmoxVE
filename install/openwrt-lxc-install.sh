@@ -29,7 +29,7 @@ msg_ok "Installed Dependencies"
 msg_info "Setting up OpenWrt repository"
 # Add OpenWrt repository key and source
 wget -qO- https://downloads.openwrt.org/releases/packages-23.05/x86_64/packages/Packages.gz | gunzip > /tmp/packages
-OPENWRT_VERSION=$(curl -s https://api.github.com/repos/openwrt/openwrt/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+OPENWRT_VERSION=$(curl -s https://api.github.com/repos/openwrt/openwrt/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")' | sed 's/^v//')
 if [[ -z "$OPENWRT_VERSION" ]]; then
   OPENWRT_VERSION="23.05.5"
 fi
