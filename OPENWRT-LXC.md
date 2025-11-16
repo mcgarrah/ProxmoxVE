@@ -30,9 +30,10 @@ lxc.cap.keep: net_admin net_raw sys_module
 # From checked out feature branch - set REPO variable
 REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash ct/openwrt-lxc.sh
 
-# Or export first
-export REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc"
-bash ct/openwrt-lxc.sh
+# To skip VAAPI prompts
+export var_vaapi="0"
+export var_hwaccel="0"
+REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash ct/openwrt-lxc.sh
 ```
 
 ### Production Testing
