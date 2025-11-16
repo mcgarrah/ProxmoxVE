@@ -91,3 +91,40 @@ bash ct/openwrt-lxc.sh
 - **Management:** systemd service controls OpenWRT lifecycle
 - **Network:** Default LAN 192.168.1.1/24, configurable via UCI
 - **Hardware acceleration:** Disabled (network-only container)
+
+## Alternative: Native OpenWRT Template
+
+### Creating Pure OpenWRT LXC Template
+For better compatibility and smaller footprint, create a native OpenWRT template:
+
+```bash
+# Download OpenWRT rootfs
+wget https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-23.05.5-x86-64-rootfs.tar.gz
+
+# Extract and repackage as LXC template
+mkdir openwrt-rootfs
+tar -xzf openwrt-23.05.5-x86-64-rootfs.tar.gz -C openwrt-rootfs
+cd openwrt-rootfs
+
+# Create LXC template
+tar -czf ../openwrt-23.05.5-lxc_amd64.tar.gz .
+```
+
+### Hosting Options
+- **GitHub Releases:** Upload to repository releases
+- **Proxmox local:** Copy to `/var/lib/vz/template/cache/`
+- **Web server:** Any HTTP accessible location
+
+### Benefits
+- Pure OpenWRT container (no Debian base)
+- Smaller resource footprint
+- Native OpenWRT environment
+- Standard LXC template format
+- Eliminates chroot complexity
+
+### Implementation
+```bash
+var_os="openwrt"
+var_version="23.05.5"
+# Point to hosted template URL
+```
