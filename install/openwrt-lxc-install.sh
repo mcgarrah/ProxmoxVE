@@ -106,10 +106,13 @@ chmod +x /usr/local/bin/openwrt-start /usr/local/bin/openwrt-stop
 msg_ok "Configured OpenWrt service"
 
 msg_info "Setting up OpenWrt network configuration"
-# Configure basic network settings
+# Initialize network configuration if it doesn't exist
+openwrt-chroot uci -q delete network.lan 2>/dev/null || true
+openwrt-chroot uci set network.lan=interface
+openwrt-chroot uci set network.lan.proto='static'
 openwrt-chroot uci set network.lan.ipaddr='192.168.1.1'
 openwrt-chroot uci set network.lan.netmask='255.255.255.0'
-openwrt-chroot uci set network.lan.proto='static'
+openwrt-chroot uci set network.lan.device='eth0'
 openwrt-chroot uci commit network
 
 # Enable and configure LuCI web interface
