@@ -162,6 +162,10 @@ function build_openwrt_container() {
   # Build network string
   NET_STRING="name=eth0,bridge=$BRG,ip=$NET"
   
+  # Debug: Show what we're about to execute
+  echo "Debug: Template path: $TEMPLATE_STORAGE:vztmpl/$var_template"
+  echo "Debug: Template path length: $(echo "$TEMPLATE_STORAGE:vztmpl/$var_template" | wc -c)"
+  
   # Create container directly with pct
   if ! pct create "$CT_ID" "$TEMPLATE_STORAGE:vztmpl/$var_template" \
     --hostname "$HN" \
@@ -207,12 +211,17 @@ function update_script() {
   exit 0
 }
 
-start
+# Skip the standard build system and call our custom function directly
 # TODO: Alternative approach - create misc/create_openwrt_lxc.sh script
 # This would mirror misc/create-openwrt-template.sh and provide
 # OpenWRT-specific container creation logic separate from main create_lxc.sh
 build_openwrt_container
-description
+
+# Set IP for description
+IP=$(pct exec "$CT_ID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1 2>/dev/null || echo "DHCP")
+
+# Set CTID for final output
+CTID="$CT_ID"
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
