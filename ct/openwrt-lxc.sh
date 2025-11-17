@@ -108,8 +108,9 @@ catch_errors
 
 # Set template path (after build.func is loaded)
 echo "Debug: About to create template"
-var_template=$(create_openwrt_template)
-echo "Debug: Template creation completed: $var_template"
+TEMPLATE_NAME=$(create_openwrt_template)
+echo "Debug: Template creation completed: $TEMPLATE_NAME"
+var_template="$TEMPLATE_NAME"
 
 # Set container variables
 CT_ID=${var_ctid:-$(pvesh get /cluster/nextid)}
