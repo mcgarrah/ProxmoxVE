@@ -49,8 +49,26 @@ create_openwrt_template() {
   
   if [ ! -f "$template_path" ]; then
     msg_info "Creating OpenWRT LXC template"
-    bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh)
-    msg_ok "Created OpenWRT LXC template"
+    if ! bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
+      msg_error "Failed to create OpenWRT template"
+      exit 1
+    fi
+    
+    # Verify template was created successfully
+    if [ ! -f "$template_path" ]; then
+      msg_error "Template creation completed but file not found at $template_path"
+      exit 1
+    fi
+    
+    # Verify template is not empty
+    if [ ! -s "$template_path" ]; then
+      msg_error "Template file is empty: $template_path"
+      exit 1
+    fi
+    
+    msg_ok "Created OpenWRT LXC template ($(du -h $template_path | cut -f1))"
+  else
+    msg_info "Using existing OpenWRT template: $template_name"
   fi
   
   echo "$template_name"
@@ -61,7 +79,7 @@ var_tags="${var_tags:-router;networking;firewall}"
 var_cpu="${var_cpu:-1}"
 var_ram="${var_ram:-256}"
 var_disk="${var_disk:-8}"
-var_os="openwrt"
+var_os="unmanaged"
 var_version="24.10.4"
 var_unprivileged="${var_unprivileged:-0}"
 var_hwaccel="${var_hwaccel:-0}"

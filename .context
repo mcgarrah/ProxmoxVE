@@ -166,6 +166,12 @@ pct create 999 /var/lib/vz/template/cache/openwrt-24.10.4-lxc_amd64.tar.gz \
 1. **Debian Base with Custom Template**: Setting var_os="debian" and using custom OpenWRT template fails due to template search conflicts
 2. **Hybrid Debian+OpenWRT Chroot**: LuCI web interface incompatible with chroot environment
 3. **Template Search Workarounds**: Attempting to use standard OS types with custom templates causes TEMPLATES array errors
+4. **Native OpenWRT OS Type**: While `/usr/share/lxc/config/openwrt.common.conf` exists, `pct create` doesn't recognize "openwrt" as valid OS type. Adding support requires modifying `/usr/share/perl5/PVE/LXC/Config.pm` and other Proxmox core files - too complex for helper scripts
+
+### Proxmox OpenWRT Integration Files (Future Reference)
+
+- **LXC Config**: `/usr/share/lxc/config/openwrt.common.conf` - OpenWRT-specific LXC container configuration
+- **PCT Integration**: `/usr/share/perl5/PVE/LXC/Config.pm` - Proxmox container type definitions (requires core modification)
 
 ### Why Privileged Container?
 

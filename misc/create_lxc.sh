@@ -269,6 +269,9 @@ else
   openwrt)
     TEMPLATE_PATTERN="-lxc_"
     ;;
+  unmanaged)
+    TEMPLATE_PATTERN=""
+    ;;
   *)
     TEMPLATE_PATTERN=""
     ;;
