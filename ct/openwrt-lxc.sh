@@ -87,6 +87,16 @@ var_vaapi="${var_vaapi:-0}"
 # Set template path
 var_template=$(create_openwrt_template)
 
+# Set container variables
+CT_ID=${var_ctid:-$(pvesh get /cluster/nextid)}
+HN=${var_hostname:-openwrt}
+DISK_SIZE="$var_disk"
+CORE_COUNT="$var_cpu"
+RAM_SIZE="$var_ram"
+BRG="vmbr0"
+NET="dhcp"
+TAGS="community-script;${var_tags}"
+
 header_info "$APP"
 variables
 color
@@ -116,6 +126,51 @@ function default_settings() {
   echo_default
 }
 
+function build_openwrt_container() {
+  # Get storage selections
+  source <(curl -fsSL ${BASE_URL}/misc/tools.func)
+  
+  # Select template storage
+  msg_info "Selecting template storage"
+  TEMPLATE_STORAGE="cephfs"  # Use your template storage
+  
+  # Select container storage  
+  msg_info "Selecting container storage"
+  CONTAINER_STORAGE="cephrbd"  # Use your container storage
+  
+  msg_info "Creating OpenWRT LXC Container"
+  
+  # Build network string
+  NET_STRING="name=eth0,bridge=$BRG,ip=$NET"
+  
+  # Create container directly with pct
+  if ! pct create "$CT_ID" "/var/lib/vz/template/cache/$var_template" \
+    --hostname "$HN" \
+    --memory "$RAM_SIZE" \
+    --cores "$CORE_COUNT" \
+    --rootfs "$CONTAINER_STORAGE:$DISK_SIZE" \
+    --net0 "$NET_STRING" \
+    --unprivileged 0 \
+    --ostype unmanaged \
+    --features "nesting=1" \
+    --tags "$TAGS" \
+    --onboot 1; then
+    msg_error "Container creation failed"
+    exit 1
+  fi
+  
+  msg_ok "Created LXC Container $CT_ID"
+  
+  # Start container
+  msg_info "Starting LXC Container"
+  pct start "$CT_ID"
+  msg_ok "Started LXC Container"
+  
+  # Get container IP
+  sleep 5
+  IP=$(pct exec "$CT_ID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
+}
+
 function update_script() {
   header_info
   msg_info "Updating $APP LXC Container"
@@ -134,7 +189,10 @@ function update_script() {
 }
 
 start
-build_container
+# TODO: Alternative approach - create misc/create_openwrt_lxc.sh script
+# This would mirror misc/create-openwrt-template.sh and provide
+# OpenWRT-specific container creation logic separate from main create_lxc.sh
+build_openwrt_container
 description
 
 msg_ok "Completed Successfully!\n"
