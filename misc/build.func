@@ -1123,6 +1123,8 @@ build_container() {
   pushd "$TEMP_DIR" >/dev/null
   if [ "$var_os" == "alpine" ]; then
     export FUNCTIONS_FILE_PATH="$(curl -fsSL ${BASE_URL}/misc/alpine-install.func)"
+  elif [ "$var_os" == "openwrt" ]; then
+    export FUNCTIONS_FILE_PATH="$(curl -fsSL ${BASE_URL}/misc/install.func)"
   else
     export FUNCTIONS_FILE_PATH="$(curl -fsSL ${BASE_URL}/misc/install.func)"
   fi
@@ -1145,6 +1147,7 @@ build_container() {
   export PCT_OSTYPE="$var_os"
   export PCT_OSVERSION="$var_version"
   export PCT_DISK_SIZE="$DISK_SIZE"
+  export PCT_TEMPLATE="$var_template"
   export PCT_OPTIONS="
     -features $FEATURES
     -hostname $HN
