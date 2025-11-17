@@ -36,14 +36,32 @@ fi
 msg_ok "OpenWrt version: $OPENWRT_VERSION"
 
 msg_info "Installing OpenWrt rootfs"
-# Download and extract OpenWrt rootfs
+# Download and extract OpenWrt rootfs with LuCI
 cd /tmp
-ROOTFS_URL="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/x86/64/openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+# Use generic x86_64 image which includes LuCI
+ROOTFS_URL="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/x86/64/openwrt-${OPENWRT_VERSION}-x86-64-generic-rootfs.tar.gz"
 wget -q "$ROOTFS_URL" -O openwrt-rootfs.tar.gz
 
 # Create OpenWrt environment
 mkdir -p /opt/openwrt
 tar -xzf openwrt-rootfs.tar.gz -C /opt/openwrt --strip-components=0
+
+# Install LuCI if not present
+if [ ! -d "/opt/openwrt/usr/lib/lua/luci" ]; then
+  msg_info "Installing LuCI web interface"
+  # Download LuCI package
+  LUCI_URL="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/x86_64/luci/luci_git-24.324.74771-1c5e8d7_all.ipk"
+  wget -q "$LUCI_URL" -O luci.ipk 2>/dev/null || {
+    # Fallback to a known working version
+    wget -q "https://downloads.openwrt.org/releases/23.05.5/packages/x86_64/luci/luci_git-23.311.79112-4c5da74_all.ipk" -O luci.ipk
+  }
+  
+  # Extract and install LuCI
+  ar x luci.ipk
+  tar -xzf data.tar.gz -C /opt/openwrt/
+  rm -f luci.ipk control.tar.gz data.tar.gz debian-binary
+fi
+
 msg_ok "Installed OpenWrt rootfs"
 
 msg_info "Configuring OpenWrt in LXC"
@@ -143,7 +161,15 @@ openwrt-chroot mkdir -p /var/run
 msg_ok "Created OpenWrt runtime directories"
 
 msg_info "Starting OpenWrt services"
-# Start uhttpd manually since systemd service doesn't work in chroot
+# Create ubus socket directory
+openwrt-chroot mkdir -p /var/run/ubus
+openwrt-chroot mkdir -p /tmp/luci-sessions
+
+# Start required services for LuCI
+openwrt-chroot /sbin/ubusd -s /var/run/ubus/ubus.sock &
+sleep 2
+openwrt-chroot /usr/sbin/rpcd -s /var/run/ubus/ubus.sock &
+sleep 2
 openwrt-chroot /usr/sbin/uhttpd -f -p 0.0.0.0:80 -h /www &
 sleep 2
 msg_ok "Started OpenWrt web interface"
@@ -152,11 +178,23 @@ msg_info "Creating convenience aliases"
 cat <<'EOF' >> /root/.bashrc
 
 # OpenWrt LXC aliases
+export PATH="$PATH:/usr/local/bin"
 alias openwrt='openwrt-chroot'
 alias owrt='openwrt-chroot'
 alias luci='echo "Access LuCI at: http://$(hostname -I | awk "{print \$1}")"'
 EOF
+
+# Add to current session PATH
+export PATH="$PATH:/usr/local/bin"
+
+
 msg_ok "Created convenience aliases"
 
-motd_ssh
+# Configure SSH with error handling
+if systemctl is-active --quiet ssh; then
+  systemctl restart ssh || systemctl reload ssh || true
+else
+  systemctl start ssh || true
+fi
+
 customize
