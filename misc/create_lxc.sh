@@ -248,46 +248,64 @@ if [ -f /etc/pve/corosync.conf ]; then
   msg_ok "Cluster is quorate"
 fi
 
-# Update LXC template list
-TEMPLATE_SEARCH="${PCT_OSTYPE}-${PCT_OSVERSION:-}"
-case "$PCT_OSTYPE" in
-debian | ubuntu)
-  TEMPLATE_PATTERN="-standard_"
-  ;;
-alpine | fedora | rocky | centos)
-  TEMPLATE_PATTERN="-default_"
-  ;;
-*)
-  TEMPLATE_PATTERN=""
-  ;;
-esac
-
-# 1. Check local templates first
-msg_info "Searching for template '$TEMPLATE_SEARCH'"
-mapfile -t TEMPLATES < <(
-  pveam list "$TEMPLATE_STORAGE" |
-    awk -v s="$TEMPLATE_SEARCH" -v p="$TEMPLATE_PATTERN" '$1 ~ s && $1 ~ p {print $1}' |
-    sed 's/.*\///' | sort -t - -k 2 -V
-)
-
-if [ ${#TEMPLATES[@]} -gt 0 ]; then
-  TEMPLATE_SOURCE="local"
+# Handle custom template or search for standard templates
+if [ -n "${PCT_TEMPLATE:-}" ]; then
+  # Use custom template
+  TEMPLATE="$PCT_TEMPLATE"
+  TEMPLATE_PATH="/var/lib/vz/template/cache/$TEMPLATE"
+  TEMPLATE_SOURCE="custom"
+  msg_info "Using custom template: $TEMPLATE"
+  msg_ok "Template ${BL}$TEMPLATE${CL} [$TEMPLATE_SOURCE]"
 else
-  msg_info "No local template found, checking online repository"
-  pveam update >/dev/null 2>&1
-  mapfile -t TEMPLATES < <(
-    pveam update >/dev/null 2>&1 &&
-      pveam available -section system |
-      sed -n "s/.*\($TEMPLATE_SEARCH.*$TEMPLATE_PATTERN.*\)/\1/p" |
-        sort -t - -k 2 -V
-  )
-  TEMPLATE_SOURCE="online"
-fi
+  # Standard template search
+  TEMPLATE_SEARCH="${PCT_OSTYPE}-${PCT_OSVERSION:-}"
+  case "$PCT_OSTYPE" in
+  debian | ubuntu)
+    TEMPLATE_PATTERN="-standard_"
+    ;;
+  alpine | fedora | rocky | centos)
+    TEMPLATE_PATTERN="-default_"
+    ;;
+  openwrt)
+    TEMPLATE_PATTERN="-lxc_"
+    ;;
+  *)
+    TEMPLATE_PATTERN=""
+    ;;
+  esac
 
-TEMPLATE="${TEMPLATES[-1]}"
-TEMPLATE_PATH="$(pvesm path $TEMPLATE_STORAGE:vztmpl/$TEMPLATE 2>/dev/null ||
-  echo "/var/lib/vz/template/cache/$TEMPLATE")"
-msg_ok "Template ${BL}$TEMPLATE${CL} [$TEMPLATE_SOURCE]"
+  # 1. Check local templates first
+  msg_info "Searching for template '$TEMPLATE_SEARCH'"
+  mapfile -t TEMPLATES < <(
+    pveam list "$TEMPLATE_STORAGE" |
+      awk -v s="$TEMPLATE_SEARCH" -v p="$TEMPLATE_PATTERN" '$1 ~ s && $1 ~ p {print $1}' |
+      sed 's/.*\///' | sort -t - -k 2 -V
+  )
+
+  if [ ${#TEMPLATES[@]} -gt 0 ]; then
+    TEMPLATE_SOURCE="local"
+  else
+    msg_info "No local template found, checking online repository"
+    pveam update >/dev/null 2>&1
+    mapfile -t TEMPLATES < <(
+      pveam update >/dev/null 2>&1 &&
+        pveam available -section system |
+        sed -n "s/.*\($TEMPLATE_SEARCH.*$TEMPLATE_PATTERN.*\)/\1/p" |
+          sort -t - -k 2 -V
+    )
+    TEMPLATE_SOURCE="online"
+  fi
+
+  if [ ${#TEMPLATES[@]} -eq 0 ]; then
+    msg_error "No templates found for '$TEMPLATE_SEARCH'"
+    exit 207
+  fi
+
+  TEMPLATE="${TEMPLATES[-1]}"
+  TEMPLATE_PATH="$(pvesm path $TEMPLATE_STORAGE:vztmpl/$TEMPLATE 2>/dev/null ||
+    echo "/var/lib/vz/template/cache/$TEMPLATE")"
+  msg_ok "Template ${BL}$TEMPLATE${CL} [$TEMPLATE_SOURCE]"
+fi
 
 # 4. Validate template (exists & not corrupted)
 TEMPLATE_VALID=1

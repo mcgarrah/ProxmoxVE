@@ -52,6 +52,8 @@ Community-driven automation scripts for Proxmox VE setup and container/VM deploy
 - **Privileged Required**: OpenWRT needs privileged LXC for network management
 - **Template Approach**: Native LXC templates solve compatibility issues
 - **Resource Efficiency**: Native approach uses 87% less resources than hybrid
+- **Debian Base Failure**: Using Debian as base OS type with custom OpenWRT template does not work - template search system conflicts with custom templates
+- **Native OS Type Required**: OpenWRT must use "openwrt" as var_os, not "debian" - requires proper template handling in create_lxc.sh
 
 ## Development Guidelines
 
@@ -66,12 +68,53 @@ export var_vaapi="0"
 export var_hwaccel="0"
 ```
 
+### Testing OpenWRT LXC Feature Branch
+
+```bash
+# Remote testing from feature branch
+REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash -c "$(curl -fsSL https://raw.githubusercontent.com/mcgarrah/ProxmoxVE/feature/openwrt-lxc/ct/openwrt-lxc.sh)"
+
+# Local testing with branch variables
+cd /home/mcgarrah/github/ProxmoxVE
+REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash ct/openwrt-lxc.sh
+
+# Recommended: With VAAPI disabled
+export var_vaapi="0"
+export var_hwaccel="0"
+REPO="mcgarrah/ProxmoxVE/feature/openwrt-lxc" bash -c "$(curl -fsSL https://raw.githubusercontent.com/mcgarrah/ProxmoxVE/feature/openwrt-lxc/ct/openwrt-lxc.sh)"
+```
+
 ### Container Requirements
 
 - **Privileged**: Required for network interface management
 - **Resources**: Minimal (256MB RAM, 1 CPU, 8GB disk)
 - **Network**: DHCP by default, configurable via UCI
 - **Services**: SSH (22), LuCI (80), HTTPS (443)
+
+### Testing & Verification
+
+```bash
+# Check container status
+pct status <container-id>
+
+# View container IP
+pct exec <container-id> -- ip addr show eth0
+
+# Test LuCI web interface
+curl -I http://<container-ip>
+
+# Test SSH access (password: proxmox)
+ssh root@<container-ip>
+
+# Manual container creation (advanced)
+pct create 999 /var/lib/vz/template/cache/openwrt-24.10.4-lxc_amd64.tar.gz \
+  --hostname openwrt-test \
+  --memory 256 \
+  --cores 1 \
+  --rootfs local:8 \
+  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
+  --unprivileged 0
+```
 
 ### Build System Integration
 
@@ -117,6 +160,12 @@ export var_hwaccel="0"
 3. **Native Environment**: All OpenWRT tools work as expected
 4. **Standard Integration**: Uses Proxmox template system properly
 5. **Update Path**: Native OpenWRT upgrade mechanisms
+
+### Failed Approaches (DO NOT RETRY)
+
+1. **Debian Base with Custom Template**: Setting var_os="debian" and using custom OpenWRT template fails due to template search conflicts
+2. **Hybrid Debian+OpenWRT Chroot**: LuCI web interface incompatible with chroot environment
+3. **Template Search Workarounds**: Attempting to use standard OS types with custom templates causes TEMPLATES array errors
 
 ### Why Privileged Container?
 

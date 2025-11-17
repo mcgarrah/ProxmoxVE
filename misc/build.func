@@ -1147,7 +1147,12 @@ build_container() {
   export PCT_OSTYPE="$var_os"
   export PCT_OSVERSION="$var_version"
   export PCT_DISK_SIZE="$DISK_SIZE"
-  export PCT_TEMPLATE="$var_template"
+  # Set custom template if provided, otherwise use standard template search
+  if [ -n "$var_template" ]; then
+    export PCT_TEMPLATE="$var_template"
+  else
+    export PCT_TEMPLATE=""
+  fi
   export PCT_OPTIONS="
     -features $FEATURES
     -hostname $HN
