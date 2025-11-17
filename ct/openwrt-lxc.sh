@@ -41,6 +41,7 @@ EOF
 
 header_info
 echo -e "Loading..."
+echo "Debug: Starting template creation check"
 
 # Create OpenWRT template if it doesn't exist
 create_openwrt_template() {
@@ -48,9 +49,11 @@ create_openwrt_template() {
   local template_path="/var/lib/vz/template/cache/$template_name"
   
   if [ ! -f "$template_path" ]; then
-    msg_info "Creating OpenWRT LXC template"
-    if ! bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
-      msg_error "Failed to create OpenWRT template"
+    msg_info "Creating OpenWRT LXC template (this may take a few minutes)"
+    
+    # Use timeout to prevent hanging
+    if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
+      msg_error "Failed to create OpenWRT template (timeout or error)"
       exit 1
     fi
     
@@ -85,7 +88,9 @@ var_unprivileged="${var_unprivileged:-0}"
 var_hwaccel="${var_hwaccel:-0}"
 var_vaapi="${var_vaapi:-0}"
 # Set template path
+echo "Debug: About to create template"
 var_template=$(create_openwrt_template)
+echo "Debug: Template creation completed: $var_template"
 
 # Set container variables
 CT_ID=${var_ctid:-$(pvesh get /cluster/nextid)}
