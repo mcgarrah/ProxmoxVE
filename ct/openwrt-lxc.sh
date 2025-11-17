@@ -163,7 +163,7 @@ function build_openwrt_container() {
   NET_STRING="name=eth0,bridge=$BRG,ip=$NET"
   
   # Create container directly with pct
-  if ! pct create "$CT_ID" "/var/lib/vz/template/cache/$var_template" \
+  if ! pct create "$CT_ID" "$TEMPLATE_STORAGE:vztmpl/$var_template" \
     --hostname "$HN" \
     --memory "$RAM_SIZE" \
     --cores "$CORE_COUNT" \
