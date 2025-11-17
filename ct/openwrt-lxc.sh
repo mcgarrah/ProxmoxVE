@@ -87,7 +87,12 @@ var_version="24.10.4"
 var_unprivileged="${var_unprivileged:-0}"
 var_hwaccel="${var_hwaccel:-0}"
 var_vaapi="${var_vaapi:-0}"
-# Set template path
+header_info "$APP"
+variables
+color
+catch_errors
+
+# Set template path (after build.func is loaded)
 echo "Debug: About to create template"
 var_template=$(create_openwrt_template)
 echo "Debug: Template creation completed: $var_template"
@@ -101,11 +106,6 @@ RAM_SIZE="$var_ram"
 BRG="vmbr0"
 NET="dhcp"
 TAGS="community-script;${var_tags}"
-
-header_info "$APP"
-variables
-color
-catch_errors
 
 function default_settings() {
   CT_TYPE="0"
