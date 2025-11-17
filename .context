@@ -1,0 +1,137 @@
+# ProxmoxVE Helper Scripts - LLM Context
+
+## Repository Overview
+
+Community-driven automation scripts for Proxmox VE setup and container/VM deployment. Originally created by tteck, now maintained by the community.
+
+## Key Components
+
+### Script Structure
+
+- `ct/`: LXC container creation scripts
+- `install/`: Installation scripts executed inside containers
+- `vm/`: Virtual machine creation scripts  
+- `misc/`: Utility functions and tools
+- `frontend/`: Web interface configuration files
+
+### Core Files
+
+- `misc/build.func`: Main build system with container creation logic
+- `misc/tools.func`: Utility functions for messaging and operations
+- `misc/create_lxc.sh`: LXC container creation handler
+- `misc/install.func`: Standard installation functions
+
+### Development Workflow
+
+- **Feature Branches**: Create clean branches from main for new features
+- **BASE_URL Support**: Use REPO variable for testing development branches
+- **VAAPI Variables**: Use var_vaapi="0" and var_hwaccel="0" to disable hardware acceleration prompts
+
+## OpenWRT LXC Implementation
+
+### Current Status: Native OpenWRT LXC (Primary)
+
+**Files**: `ct/openwrt-lxc.sh`, `install/openwrt-lxc-install.sh`
+
+- **Architecture**: Native OpenWRT LXC template (no chroot)
+- **Benefits**: Full LuCI support, minimal footprint (~5MB), native environment
+- **Template**: Auto-created from OpenWRT 24.10.4 rootfs
+- **Status**: Production-ready implementation
+
+### Legacy: Debian + OpenWRT Chroot (Deprecated)
+
+**Files**: `ct/openwrt-debian-lxc.sh`, `install/openwrt-debian-lxc-install.sh`
+
+- **Architecture**: Debian 12 base + OpenWRT chroot at /opt/openwrt
+- **Issues**: LuCI incompatible with chroot environment
+- **Status**: Functional for UCI commands only, LuCI broken
+
+### Key Learnings
+
+- **LuCI Chroot Incompatibility**: Runtime initialization fails in chroot isolation
+- **Privileged Required**: OpenWRT needs privileged LXC for network management
+- **Template Approach**: Native LXC templates solve compatibility issues
+- **Resource Efficiency**: Native approach uses 87% less resources than hybrid
+
+## Development Guidelines
+
+### Testing Development Branches
+
+```bash
+# Set REPO variable for development testing
+REPO="username/ProxmoxVE/branch-name" bash ct/script-name.sh
+
+# Disable VAAPI prompts for network-only containers
+export var_vaapi="0"
+export var_hwaccel="0"
+```
+
+### Container Requirements
+
+- **Privileged**: Required for network interface management
+- **Resources**: Minimal (256MB RAM, 1 CPU, 8GB disk)
+- **Network**: DHCP by default, configurable via UCI
+- **Services**: SSH (22), LuCI (80), HTTPS (443)
+
+### Build System Integration
+
+- **OS Type**: Set `var_os="openwrt"` for native containers
+- **Template**: Use `var_template` for custom LXC templates
+- **BASE_URL**: Supports development branch testing
+- **VAAPI**: Disabled for network-only containers
+
+## Common Issues & Solutions
+
+### VAAPI Prompts
+
+**Problem**: Hardware acceleration prompts for network containers
+**Solution**: Set `var_vaapi="0"` and `var_hwaccel="0"` in build.func
+
+### Development Testing
+
+**Problem**: Scripts use main branch URLs during development
+**Solution**: Copy modified build.func with BASE_URL support
+
+### LXC Template Creation
+
+**Problem**: Custom OS types need templates
+**Solution**: Use `misc/create-openwrt-template.sh` for automatic template creation
+
+### Network Configuration
+
+**Problem**: OpenWRT network setup in containerized environment
+**Solution**: Configure for DHCP by default, disable rfc1918_filter
+
+## File Naming Conventions
+
+- **Primary Implementation**: `openwrt-lxc` (native OpenWRT)
+- **Legacy Implementation**: `openwrt-debian-lxc` (Debian+chroot)
+- **VM Implementation**: `openwrt-vm` (full virtual machine)
+
+## Architecture Decisions
+
+### Why Native OpenWRT LXC?
+
+1. **LuCI Compatibility**: Eliminates chroot runtime issues
+2. **Resource Efficiency**: 87% smaller than Debian base
+3. **Native Environment**: All OpenWRT tools work as expected
+4. **Standard Integration**: Uses Proxmox template system properly
+5. **Update Path**: Native OpenWRT upgrade mechanisms
+
+### Why Privileged Container?
+
+- Network interface management (bridges, VLANs)
+- Kernel module loading (iptables, netfilter)
+- Device access (/dev/net/tun for VPN)
+- Raw socket operations (routing protocols)
+- System-level network configuration
+
+## Success Metrics
+
+- ✅ **Container Creation**: Automated template generation and deployment
+- ✅ **LuCI Interface**: Full web management functionality
+- ✅ **UCI System**: Complete configuration management
+- ✅ **Package Management**: Working opkg with network access
+- ✅ **Resource Efficiency**: Minimal footprint with maximum functionality
+
+This context provides LLMs with comprehensive understanding of the ProxmoxVE Helper Scripts project structure, OpenWRT LXC implementation details, development workflows, and architectural decisions.

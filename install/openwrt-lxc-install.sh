@@ -28,10 +28,23 @@ uci commit dropbear
 # Configure LuCI web interface
 uci set uhttpd.main.listen_http='0.0.0.0:80'
 uci set uhttpd.main.listen_https='0.0.0.0:443'
+uci set uhttpd.main.redirect_https='0'
+uci set uhttpd.main.rfc1918_filter='0'
 uci commit uhttpd
 
-# Set root password for web access
-echo -e "admin\nadmin" | passwd root
+# Configure system settings
+uci set system.@system[0].hostname='openwrt-lxc'
+uci set system.@system[0].timezone='UTC'
+uci commit system
+
+# Set up firewall for LXC environment
+uci set firewall.@defaults[0].input='ACCEPT'
+uci set firewall.@defaults[0].output='ACCEPT'
+uci set firewall.@defaults[0].forward='ACCEPT'
+uci commit firewall
+
+# Create runtime directories
+mkdir -p /var/lock /var/run /tmp/luci-sessions
 
 msg_ok "Configured OpenWrt for LXC"
 

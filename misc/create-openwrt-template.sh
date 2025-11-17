@@ -83,12 +83,14 @@ uci_set dropbear '@dropbear[0]' RootPasswordAuth 'on'
 uci_set dropbear '@dropbear[0]' Port '22'
 
 # Configure LuCI web interface
+# TODO: Add option for forced HTTPS redirection (redirect_https '1')
 cat > etc/config/uhttpd << 'EOF'
 config uhttpd 'main'
 	option listen_http '0.0.0.0:80'
 	option listen_https '0.0.0.0:443'
 	option home '/www'
-	option rfc1918_filter '1'
+	option rfc1918_filter '0'
+	option redirect_https '0'
 	option max_requests '3'
 	option max_connections '100'
 	option cert '/etc/uhttpd.crt'
@@ -99,6 +101,40 @@ config uhttpd 'main'
 	option network_timeout '30'
 	option http_keepalive '20'
 	option tcp_keepalive '1'
+EOF
+
+# Configure system settings for LXC
+cat > etc/config/system << 'EOF'
+config system
+	option hostname 'openwrt-lxc'
+	option timezone 'UTC'
+	option ttylogin '0'
+	option log_size '64'
+	option urandom_seed '0'
+
+config timeserver 'ntp'
+	list server '0.openwrt.pool.ntp.org'
+	list server '1.openwrt.pool.ntp.org'
+	list server '2.openwrt.pool.ntp.org'
+	list server '3.openwrt.pool.ntp.org'
+	option enabled '1'
+	option enable_server '0'
+EOF
+
+# Configure firewall for LXC environment
+cat > etc/config/firewall << 'EOF'
+config defaults
+	option syn_flood '1'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+
+config zone
+	option name 'lan'
+	list network 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
 EOF
 
 # Create init script for LXC startup

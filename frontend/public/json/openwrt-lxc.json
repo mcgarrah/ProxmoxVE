@@ -1,14 +1,53 @@
 {
   "name": "OpenWrt LXC",
-  "description": "OpenWrt router OS running natively in LXC container with full LuCI web interface support",
-  "note": "Requires privileged container for network management. Uses OpenWrt as base OS instead of chroot.",
-  "categories": ["Network", "Router", "Firewall"],
+  "slug": "openwrt-lxc",
+  "categories": [
+    4,
+    2
+  ],
+  "date_created": "2025-01-27",
+  "type": "lxc",
+  "updateable": true,
   "privileged": true,
   "interface_port": 80,
-  "ram": 256,
-  "swap": 0,
-  "disk": 8,
-  "cpu": 1,
-  "password": "",
-  "ssh": "no"
+  "documentation": "https://openwrt.org/docs/start",
+  "website": "https://openwrt.org/",
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/openwrt.webp",
+  "config_path": "",
+  "description": "OpenWrt running natively in LXC container - a powerful open-source firmware that provides advanced networking capabilities with full LuCI web interface support. Native implementation eliminates chroot complexity and provides complete OpenWrt functionality.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/openwrt-lxc.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 256,
+        "hdd": 8,
+        "os": "openwrt",
+        "version": "24.10.4"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "root",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "This container requires privileged mode for network interface management and kernel module access.",
+      "type": "warning"
+    },
+    {
+      "text": "Native OpenWrt implementation provides full LuCI web interface functionality without chroot limitations.",
+      "type": "info"
+    },
+    {
+      "text": "Access the LuCI web interface at http://container-ip after installation completes.",
+      "type": "info"
+    },
+    {
+      "text": "Uses native OpenWrt LXC template for minimal resource footprint (~5MB vs 500MB+ for Debian-based).",
+      "type": "info"
+    }
+  ]
 }

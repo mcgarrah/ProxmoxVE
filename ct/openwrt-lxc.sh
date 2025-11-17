@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1090,SC1091
+# Set install URL if provided (used for development) - must be set before sourcing build.func
+var_install_url="${var_install_url:-}"
 
+# Set base URL for repository access
+if [ -n "$var_install_url" ]; then
+  # var_install_url should be the base repo URL, not including /install
+  BASE_URL="$var_install_url"
+elif [ -n "$REPO" ]; then
+  BASE_URL="https://raw.githubusercontent.com/$REPO"
+else
+  BASE_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+fi
+source <(curl -fsSL ${BASE_URL}/misc/build.func)
 # Copyright (c) 2021-2025 community-scripts ORG
 # Author: community-scripts
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://openwrt.org/
-
-source <(curl -fsSL ${BASE_URL:-https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main}/misc/build.func)
 # color
 # verb_ip6
 # catch_errors
@@ -46,13 +57,19 @@ create_openwrt_template() {
 }
 
 APP="OpenWrt"
-var_disk="8"
-var_cpu="1"
-var_ram="256"
+var_tags="${var_tags:-router;networking;firewall}"
+var_cpu="${var_cpu:-1}"
+var_ram="${var_ram:-256}"
+var_disk="${var_disk:-8}"
 var_os="openwrt"
 var_version="24.10.4"
+var_unprivileged="${var_unprivileged:-0}"
+var_hwaccel="${var_hwaccel:-0}"
+var_vaapi="${var_vaapi:-0}"
 # Set template path
 var_template=$(create_openwrt_template)
+
+header_info "$APP"
 variables
 color
 catch_errors
@@ -82,17 +99,20 @@ function default_settings() {
 }
 
 function update_script() {
-header_info
-msg_info "Updating $APP LXC Container"
-if [[ ! -f /usr/bin/opkg ]]; then
-  msg_error "No ${APP} Installation Found!"
-  exit
-fi
-msg_info "Updating OpenWrt Packages"
-opkg update &>/dev/null
-opkg upgrade &>/dev/null
-msg_ok "Updated $APP LXC Container"
-exit
+  header_info
+  msg_info "Updating $APP LXC Container"
+  
+  if [[ -f /etc/openwrt-release ]]; then
+    msg_info "Updating OpenWrt packages"
+    opkg update &>/dev/null
+    opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade &>/dev/null
+    msg_ok "Updated OpenWrt packages"
+  else
+    msg_error "No ${APP} Installation Found!"
+    exit 1
+  fi
+  
+  exit 0
 }
 
 start
@@ -100,5 +120,9 @@ build_container
 description
 
 msg_ok "Completed Successfully!\n"
-echo -e "${APP} should be reachable by going to the following URL.
-         ${BL}http://${IP}${CL} \n"
+echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
+echo -e "${INFO}${YW} Access OpenWrt LuCI interface using the following URL:${CL}"
+echo -e "${TAB}${GATEWAY}${BGN}http://${IP}${CL}"
+echo -e "${INFO}${YW} Default credentials: root / (no password)${CL}"
+echo -e "${INFO}${YW} SSH Access: ssh root@${IP}${CL}"
+echo -e "${INFO}${YW} Console Access: pct enter ${CTID}${CL}"
