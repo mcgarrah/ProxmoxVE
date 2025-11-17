@@ -45,35 +45,49 @@ echo "Debug: Starting template creation check"
 
 # Create OpenWRT template if it doesn't exist
 create_openwrt_template() {
+  echo "Debug: Entering create_openwrt_template function"
   local template_name="openwrt-24.10.4-lxc_amd64.tar.gz"
   local template_path="/var/lib/vz/template/cache/$template_name"
   
+  echo "Debug: Checking if template exists at: $template_path"
   if [ ! -f "$template_path" ]; then
-    msg_info "Creating OpenWRT LXC template (this may take a few minutes)"
+    echo "Debug: Template not found, creating it"
+    echo "Debug: BASE_URL is: $BASE_URL"
     
-    # Use timeout to prevent hanging
-    if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
-      msg_error "Failed to create OpenWRT template (timeout or error)"
+    # Test if we can reach the template creation script
+    echo "Debug: Testing curl access to template script"
+    if ! curl -fsSL --connect-timeout 10 "${BASE_URL}/misc/create-openwrt-template.sh" >/dev/null; then
+      echo "Error: Cannot access template creation script at ${BASE_URL}/misc/create-openwrt-template.sh"
       exit 1
     fi
+    echo "Debug: Template script is accessible"
+    
+    echo "Debug: Starting template creation with timeout"
+    # Use timeout to prevent hanging
+    if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
+      echo "Error: Failed to create OpenWRT template (timeout or error)"
+      exit 1
+    fi
+    echo "Debug: Template creation script completed"
     
     # Verify template was created successfully
     if [ ! -f "$template_path" ]; then
-      msg_error "Template creation completed but file not found at $template_path"
+      echo "Error: Template creation completed but file not found at $template_path"
       exit 1
     fi
     
     # Verify template is not empty
     if [ ! -s "$template_path" ]; then
-      msg_error "Template file is empty: $template_path"
+      echo "Error: Template file is empty: $template_path"
       exit 1
     fi
     
-    msg_ok "Created OpenWRT LXC template ($(du -h $template_path | cut -f1))"
+    echo "Debug: Template created successfully"
   else
-    msg_info "Using existing OpenWRT template: $template_name"
+    echo "Debug: Using existing template: $template_name"
   fi
   
+  echo "Debug: Exiting create_openwrt_template function"
   echo "$template_name"
 }
 
