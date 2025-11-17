@@ -147,16 +147,56 @@ function default_settings() {
 }
 
 function build_openwrt_container() {
-  # Get storage selections
+  # Get storage selections using the same logic as create_lxc.sh
   source <(curl -fsSL ${BASE_URL}/misc/tools.func)
+  
+  # Function to select storage (copied from create_lxc.sh logic)
+  select_storage() {
+    local CLASS=$1 CONTENT CONTENT_LABEL
+    case $CLASS in
+      template) CONTENT='vztmpl'; CONTENT_LABEL='Template' ;;
+      container) CONTENT='rootdir'; CONTENT_LABEL='Container' ;;
+    esac
+    
+    local -a MENU
+    while read -r TAG TYPE _ TOTAL USED FREE _; do
+      [[ -n "$TAG" && -n "$TYPE" ]] || continue
+      local USED_FMT=$(numfmt --to=iec --from-unit=K --format %.1f <<<"$USED")
+      local FREE_FMT=$(numfmt --to=iec --from-unit=K --format %.1f <<<"$FREE")
+      MENU+=("$TAG" "Free: ${FREE_FMT}B Used: ${USED_FMT}B" "OFF")
+    done < <(pvesm status -content "$CONTENT" | awk 'NR>1')
+    
+    if [ ${#MENU[@]} -eq 3 ]; then
+      STORAGE_RESULT="${MENU[0]}"
+    else
+      STORAGE_RESULT=$(whiptail --backtitle "Proxmox VE Helper Scripts" \
+        --title "Storage Pools" \
+        --radiolist "Which storage pool for ${CONTENT_LABEL,,}?" \
+        16 70 6 "${MENU[@]}" 3>&1 1>&2 2>&3)
+    fi
+  }
   
   # Select template storage
   msg_info "Selecting template storage"
-  TEMPLATE_STORAGE="cephfs"  # Use your template storage
+  select_storage template
+  TEMPLATE_STORAGE="$STORAGE_RESULT"
+  msg_ok "Selected template storage: $TEMPLATE_STORAGE"
   
-  # Select container storage  
+  # Select container storage
   msg_info "Selecting container storage"
-  CONTAINER_STORAGE="cephrbd"  # Use your container storage
+  select_storage container
+  CONTAINER_STORAGE="$STORAGE_RESULT"
+  msg_ok "Selected container storage: $CONTAINER_STORAGE"
+  
+  # Copy template to selected storage if not already there
+  if [ "$TEMPLATE_STORAGE" != "local" ]; then
+    msg_info "Copying template to $TEMPLATE_STORAGE storage"
+    if ! pveam download "$TEMPLATE_STORAGE" "$var_template" --source "/var/lib/vz/template/cache/$var_template" 2>/dev/null; then
+      # If pveam doesn't work, try direct copy
+      cp "/var/lib/vz/template/cache/$var_template" "$(pvesm path $TEMPLATE_STORAGE:vztmpl/$var_template)"
+    fi
+    msg_ok "Template copied to $TEMPLATE_STORAGE"
+  fi
   
   msg_info "Creating OpenWRT LXC Container"
   
