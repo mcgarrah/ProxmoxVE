@@ -117,7 +117,8 @@ echo "Debug: Template creation completed: $var_template"
 # Set base settings - network config will come from build system
 base_settings
 
-# Override container variables after base_settings
+# Override container variables after base_settings - OpenWRT MUST be privileged
+CT_TYPE="0"  # Hardcoded: OpenWRT native requires privileged container
 CT_ID=${CT_ID:-$(pvesh get /cluster/nextid)}
 HN=${HN:-openwrt-lxc}
 TAGS="community-script;${var_tags}"
@@ -146,7 +147,8 @@ function default_settings() {
   echo_default
 }
 
-function build_openwrt_container() {
+# Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
+build_container() {
   # Get storage selections using the same logic as create_lxc.sh
   source <(curl -fsSL ${BASE_URL}/misc/tools.func)
   
@@ -209,14 +211,23 @@ function build_openwrt_container() {
   
   msg_info "Creating OpenWRT LXC Container"
   
-  # Build network string
+  # Build network string from build system variables
   NET_STRING="name=eth0,bridge=$BRG,ip=$NET"
+  if [ -n "$GATE" ]; then
+    NET_STRING="$NET_STRING$GATE"
+  fi
+  if [ -n "$MAC" ]; then
+    NET_STRING="$NET_STRING$MAC"
+  fi
+  if [ -n "$VLAN" ]; then
+    NET_STRING="$NET_STRING$VLAN"
+  fi
+  if [ -n "$MTU" ]; then
+    NET_STRING="$NET_STRING$MTU"
+  fi
   
-  # Debug: Show what we're about to execute
-  echo "Debug: Template path: $TEMPLATE_STORAGE:vztmpl/$var_template"
-  echo "Debug: Template path length: $(echo "$TEMPLATE_STORAGE:vztmpl/$var_template" | wc -c)"
-  
-  # Create container directly with pct
+  # Create container directly with pct (required for unmanaged OS type)
+  # OpenWRT native MUST be privileged (--unprivileged 0) and unmanaged
   if ! pct create "$CT_ID" "$TEMPLATE_STORAGE:vztmpl/$var_template" \
     --hostname "$HN" \
     --memory "$RAM_SIZE" \
@@ -255,10 +266,13 @@ function build_openwrt_container() {
     fi
   done
   
-  # Run post-install configuration
+  # Run OpenWRT-specific post-install
   msg_info "Running OpenWRT post-install configuration"
   pct exec "$CT_ID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
   msg_ok "Post-install configuration completed"
+  
+  # Set CTID for description function (build.func expects this)
+  CTID="$CT_ID"
 }
 
 function update_script() {
@@ -278,20 +292,19 @@ function update_script() {
   exit 0
 }
 
-# Call our custom container creation function
-build_openwrt_container
-# Ensure IP is set (it should be from build_openwrt_container)
+# Use standard build system - start() will call build_container() automatically
+start
+description
+
+# Ensure IP is set with fallback logic
 if [ -z "$IP" ] || [ "$IP" = "DHCP" ]; then
   # Try one more time to get the IP
-  IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
+  IP=$(pct exec "$CTID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
   if [ -z "$IP" ]; then
     IP="<IP_ADDRESS>"
-    IP_NOTE="\n${INFO}${YW} Run 'pct enter ${CT_ID}' then 'ip addr' to get the container's IP address${CL}"
+    IP_NOTE="\n${INFO}${YW} Run 'pct enter ${CTID}' then 'ip addr' to get the container's IP address${CL}"
   fi
 fi
-
-# Set CTID for final output
-CTID="$CT_ID"
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"

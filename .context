@@ -181,11 +181,30 @@ pct create 999 /var/lib/vz/template/cache/openwrt-24.10.4-lxc_amd64.tar.gz \
 - Raw socket operations (routing protocols)
 - System-level network configuration
 
-### ASCII Art Headers
+### Header System Standardization
 
 - **Generator**: https://patorjk.com/software/taag/#p=display&f=Slant&t=OpenWRT for creating/updating header ASCII art
 - **Location**: `ct/headers/` directory with lowercase app names
 - **Format**: Plain text ASCII art with optional subtitle
+- **Migration**: Moved from inline header_info() functions to external header files
+- **OpenWRT Fix**: Corrected ASCII art from "OpenLT" to "OpenWRT" with "Native LXC Container" subtitle
+- **Naming Convention**: Header files use lowercase app names (e.g., `openwrt` not `openwrt-lxc`)
+
+### Shell Compatibility Issues
+
+- **OpenWRT Shell**: Uses BusyBox ash, not bash - avoid bash-specific syntax
+- **Shebang**: Use `#!/bin/ash` for OpenWRT post-install scripts
+- **Syntax Restrictions**: No `source /dev/stdin <<<` or bash arrays
+- **Function Calls**: Use simple echo statements instead of build.func functions in OpenWRT environment
+- **Debug Output**: Redirect to stderr to prevent variable contamination in command substitution
+
+### Recent Testing Results
+
+- **Container Creation**: Successfully tested on Proxmox node (Container ID 102, IP 192.168.1.1)
+- **OpenWRT Version**: 24.10.4 confirmed working
+- **Function Corruption**: Fixed "build_openwrt_containereation" typo to "build_openwrt_container"
+- **Variable Contamination**: Fixed debug output interfering with template variable capture
+- **Post-Install**: Converted from bash to ash-compatible syntax for OpenWRT environment
 
 ## Success Metrics
 

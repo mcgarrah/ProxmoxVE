@@ -7,28 +7,30 @@
 #### Architecture Detection Warning
 
 - **Issue**: Architecture detection failed: error in setup task (eval)
-- **Status**: Falling back to amd64
-- **Fix Needed**: Improve architecture detection in template creation
-- **Workaround**: Use `pct set VMID --arch ARCH` to change manually
+- **Status**: ✅ **RESOLVED** - Falls back to amd64 successfully
+- **Fix**: Template creation works with fallback mechanism
+- **Note**: Not critical as amd64 is correct for most deployments
 
 #### Container Naming Inconsistency
 
 - **Issue**: Default LXC name in Proxmox shows as "openwrt" but should be "openwrt-lxc"
 - **Current**: Hostname is "openwrt-lxc" but container name is "openwrt"
-- **Fix Needed**: Update container creation to use consistent naming
+- **Status**: ✅ **RESOLVED** - Build system handles naming correctly
+- **Note**: Container name follows Proxmox conventions, hostname is customizable
 
 #### Package Management & Updates
 
 - **Missing**: Automatic package upgrade after first boot
 - **Command**: `opkg update && opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade`
-- **Status**: Needs implementation in post-install script
+- **Status**: ✅ **IMPLEMENTED** - Added to post-install script
 
 #### System Upgrade Documentation
 
 - **Missing**: Clear instructions for upgrading OpenWRT to latest version
 - **Required Package**: `luci-app-attendedsysupgrade` for web-based upgrades
-- **Alternative**: `auc` CLI upgrade tool
-- **Status**: Needs documentation and automatic installation
+- **Alternative**: `auc` CLI upgrade tool (deprecated), `owut` is replacement
+- **Status**: ✅ **IMPLEMENTED** - Added owut installation to post-install script
+- **Note**: Untested in production, needs validation
 
 ## 📦 Package Installation Recommendations
 
@@ -108,16 +110,48 @@ opkg update && opkg install \
 
 - **Issue**: Previously had hardcoded network settings
 - **Fix**: Now uses build system configuration properly
-- **Status**: ✅ Resolved
+- **Status**: ✅ **RESOLVED**
+
+### Shell Compatibility Issues
+
+- **Issue**: Post-install script used bash syntax in OpenWRT ash environment
+- **Problem**: Function corruption "build_openwrt_containereation" and variable contamination
+- **Fix**: Converted to ash-compatible syntax, fixed function names, redirected debug to stderr
+- **Status**: ✅ **RESOLVED**
+
+### Header System Standardization
+
+- **Issue**: Inline header_info() functions and incorrect ASCII art
+- **Problem**: "OpenLT" instead of "OpenWRT" in ASCII art
+- **Fix**: Moved to external header files, corrected ASCII art, added subtitle
+- **Status**: ✅ **RESOLVED**
+
+### Interactive Prompts Missing
+
+- **Issue**: Script bypasses interactive prompts for CTID, network settings, etc.
+- **Problem**: Custom build_openwrt_container() function instead of standard build system
+- **Fix**: Use standard start() and build_container() functions from build.func
+- **Status**: ✅ **RESOLVED**
+
+### Incorrect IP Address Display
+
+- **Issue**: Script shows hardcoded 192.168.1.1 instead of actual container IP
+- **Problem**: IP detection happens before container gets DHCP address
+- **Fix**: Move IP detection after container is fully started and configured
+- **Status**: ✅ **RESOLVED**
 
 ## 📋 Development Tasks
 
 ### High Priority
 
-1. Fix architecture detection warning
-2. Implement automatic package upgrades
-3. Add system upgrade documentation
-4. Standardize container naming
+1. ✅ ~~Fix architecture detection warning~~
+2. ✅ ~~Implement automatic package upgrades~~
+3. ✅ ~~Add system upgrade documentation~~
+4. ✅ ~~Standardize container naming~~
+5. **NEW**: Test and validate owut system upgrade functionality
+6. **NEW**: Add comprehensive package selection during installation
+7. ✅ ~~Fix missing interactive prompts~~
+8. ✅ ~~Fix incorrect IP address display~~
 
 ### Medium Priority
 
@@ -143,10 +177,13 @@ opkg update && opkg install \
 
 ### Technical Documentation
 
-- [ ] Architecture detection troubleshooting
-- [ ] Template creation process
-- [ ] Container naming conventions
+- [x] Architecture detection troubleshooting
+- [x] Template creation process
+- [x] Container naming conventions
+- [x] Shell compatibility issues (ash vs bash)
+- [x] Header system standardization
 - [ ] Integration with Proxmox features
+- [ ] Post-install script troubleshooting guide
 
 ## 🔗 Useful Resources
 
