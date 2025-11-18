@@ -179,13 +179,11 @@ build_container() {
   }
   
   # Select template storage
-  msg_info "Selecting template storage"
   select_storage template
   TEMPLATE_STORAGE="$STORAGE_RESULT"
   msg_ok "Selected template storage: $TEMPLATE_STORAGE"
   
   # Select container storage
-  msg_info "Selecting container storage"
   select_storage container
   CONTAINER_STORAGE="$STORAGE_RESULT"
   msg_ok "Selected container storage: $CONTAINER_STORAGE"
