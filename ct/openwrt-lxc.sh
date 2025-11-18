@@ -28,12 +28,9 @@ source <(curl -fsSL ${BASE_URL}/misc/build.func)
 
 header_info
 echo -e "Loading..."
-echo "Debug: Starting template creation check"
 
 # Create OpenWRT template if it doesn't exist
 create_openwrt_template() {
-  echo "Debug: Entering create_openwrt_template function" >&2
-  
   # Get latest OpenWRT version (24.x or newer)
   local openwrt_version=$(curl -s https://downloads.openwrt.org/releases/ | \
     grep -oE 'href="[0-9]+\.[0-9]+\.[0-9]+/"' | \
@@ -43,35 +40,24 @@ create_openwrt_template() {
     tail -1)
   
   if [ -z "$openwrt_version" ]; then
-    echo "Debug: Failed to fetch latest version, using fallback" >&2
     openwrt_version="24.10.4"
   fi
   
   local template_name="openwrt-${openwrt_version}-lxc_amd64.tar.gz"
   local template_path="/var/lib/vz/template/cache/$template_name"
   
-  echo "Debug: Using OpenWRT version: $openwrt_version" >&2
-  
-  echo "Debug: Checking if template exists at: $template_path" >&2
   if [ ! -f "$template_path" ]; then
-    echo "Debug: Template not found, creating it" >&2
-    echo "Debug: BASE_URL is: $BASE_URL" >&2
-    
     # Test if we can reach the template creation script
-    echo "Debug: Testing curl access to template script" >&2
     if ! curl -fsSL --connect-timeout 10 "${BASE_URL}/misc/create-openwrt-template.sh" >/dev/null; then
       echo "Error: Cannot access template creation script at ${BASE_URL}/misc/create-openwrt-template.sh" >&2
       exit 1
     fi
-    echo "Debug: Template script is accessible" >&2
     
-    echo "Debug: Starting template creation with timeout" >&2
     # Use timeout to prevent hanging
-    if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
+    if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh) >/dev/null 2>&1; then
       echo "Error: Failed to create OpenWRT template (timeout or error)" >&2
       exit 1
     fi
-    echo "Debug: Template creation script completed" >&2
     
     # Verify template was created successfully
     if [ ! -f "$template_path" ]; then
@@ -84,13 +70,8 @@ create_openwrt_template() {
       echo "Error: Template file is empty: $template_path" >&2
       exit 1
     fi
-    
-    echo "Debug: Template created successfully" >&2
-  else
-    echo "Debug: Using existing template: $template_name" >&2
   fi
   
-  echo "Debug: Exiting create_openwrt_template function" >&2
   echo "$template_name"
 }
 
@@ -110,9 +91,7 @@ color
 catch_errors
 
 # Set template path (after build.func is loaded)
-echo "Debug: About to create template"
 var_template=$(create_openwrt_template)
-echo "Debug: Template creation completed: $var_template"
 
 # Set base settings - network config will come from build system
 base_settings
@@ -160,10 +139,8 @@ build_container() {
     # Fallback: try to use CT_ID or NEXTID
     if [ -n "$CT_ID" ]; then
       CTID="$CT_ID"
-      echo "Debug: Using CT_ID as fallback: $CTID" >&2
     elif [ -n "$NEXTID" ]; then
       CTID="$NEXTID"
-      echo "Debug: Using NEXTID as fallback: $CTID" >&2
     else
       msg_error "No container ID available (CTID, CT_ID, NEXTID all empty)"
       exit 1
