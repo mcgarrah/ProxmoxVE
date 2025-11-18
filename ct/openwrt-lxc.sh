@@ -270,7 +270,7 @@ function update_script() {
 }
 
 # Call our custom container creation function
-build_openwrt_containereation logic separate from main create_lxc.sh
+build_openwrt_container
 # Ensure IP is set (it should be from build_openwrt_container)
 if [ -z "$IP" ] || [ "$IP" = "DHCP" ]; then
   # Try one more time to get the IP
