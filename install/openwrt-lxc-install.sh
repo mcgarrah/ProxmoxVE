@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/ash
 
 # Copyright (c) 2021-2025 community-scripts ORG
 # Author: community-scripts

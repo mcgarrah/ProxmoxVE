@@ -257,7 +257,7 @@ function build_openwrt_container() {
   
   # Run post-install configuration
   msg_info "Running OpenWRT post-install configuration"
-  pct exec "$CT_ID" -- bash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
+  pct exec "$CT_ID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
   msg_ok "Post-install configuration completed"
 }
 
