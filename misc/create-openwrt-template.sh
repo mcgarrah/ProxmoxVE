@@ -5,7 +5,20 @@
 
 set -e
 
-OPENWRT_VERSION="24.10.4"
+# Get latest stable OpenWRT version (24.x or newer)
+echo "Fetching latest OpenWRT version..."
+OPENWRT_VERSION=$(curl -s https://downloads.openwrt.org/releases/ | \
+  grep -oE 'href="[0-9]+\.[0-9]+\.[0-9]+/"' | \
+  sed 's/href="//;s/\/"//' | \
+  sort -V | \
+  awk -F. '$1 >= 24 {print}' | \
+  tail -1)
+
+if [ -z "$OPENWRT_VERSION" ]; then
+  echo "Failed to fetch latest version, falling back to 24.10.4"
+  OPENWRT_VERSION="24.10.4"
+fi
+
 TEMPLATE_NAME="openwrt-${OPENWRT_VERSION}-lxc_amd64.tar.gz"
 WORK_DIR="/tmp/openwrt-template-$$"
 

@@ -181,6 +181,12 @@ pct create 999 /var/lib/vz/template/cache/openwrt-24.10.4-lxc_amd64.tar.gz \
 - Raw socket operations (routing protocols)
 - System-level network configuration
 
+### ASCII Art Headers
+
+- **Generator**: https://patorjk.com/software/taag/#p=display&f=Slant&t=OpenWRT for creating/updating header ASCII art
+- **Location**: `ct/headers/` directory with lowercase app names
+- **Format**: Plain text ASCII art with optional subtitle
+
 ## Success Metrics
 
 - ✅ **Container Creation**: Automated template generation and deployment

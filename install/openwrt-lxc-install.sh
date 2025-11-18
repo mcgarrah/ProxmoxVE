@@ -54,5 +54,22 @@ msg_info "Starting OpenWrt services"
 /etc/init.d/uhttpd start
 msg_ok "Started OpenWrt services"
 
+# Update packages and install additional components
+msg_info "Updating OpenWrt packages"
+opkg update
+opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade
+msg_ok "Updated OpenWrt packages"
+
+msg_info "Installing additional LuCI packages"
+opkg install luci-mod-admin-full luci-app-attendedsysupgrade auc || {
+    msg_warn "Some packages failed to install, continuing..."
+}
+msg_ok "Installed additional LuCI packages"
+
+# Restart services after package installation
+msg_info "Restarting services"
+/etc/init.d/uhttpd restart
+msg_ok "Services restarted"
+
 motd_ssh
 customize

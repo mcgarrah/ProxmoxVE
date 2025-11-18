@@ -24,20 +24,7 @@ source <(curl -fsSL ${BASE_URL}/misc/build.func)
 # network_check
 # update_os
 
-function header_info {
-clear
-cat <<"EOF"
-   ____                   _       _______ 
-  / __ \                 | |     |__   __|
- | |  | |_ __   ___ _ __ | |        | |   
- | |  | | '_ \ / _ \ '_ \| |        | |   
- | |__| | |_) |  __/ | | | |____    | |   
-  \____/| .__/ \___|_| |_|______|   |_|   
-        | |                              
-        |_|    Native LXC Container      
-                                         
-EOF
-}
+
 
 header_info
 echo -e "Loading..."
@@ -46,8 +33,24 @@ echo "Debug: Starting template creation check"
 # Create OpenWRT template if it doesn't exist
 create_openwrt_template() {
   echo "Debug: Entering create_openwrt_template function"
-  local template_name="openwrt-24.10.4-lxc_amd64.tar.gz"
+  
+  # Get latest OpenWRT version (24.x or newer)
+  local openwrt_version=$(curl -s https://downloads.openwrt.org/releases/ | \
+    grep -oE 'href="[0-9]+\.[0-9]+\.[0-9]+/"' | \
+    sed 's/href="//;s/\/"//' | \
+    sort -V | \
+    awk -F. '$1 >= 24 {print}' | \
+    tail -1)
+  
+  if [ -z "$openwrt_version" ]; then
+    echo "Debug: Failed to fetch latest version, using fallback"
+    openwrt_version="24.10.4"
+  fi
+  
+  local template_name="openwrt-${openwrt_version}-lxc_amd64.tar.gz"
   local template_path="/var/lib/vz/template/cache/$template_name"
+  
+  echo "Debug: Using OpenWRT version: $openwrt_version"
   
   echo "Debug: Checking if template exists at: $template_path"
   if [ ! -f "$template_path" ]; then
@@ -108,18 +111,15 @@ catch_errors
 
 # Set template path (after build.func is loaded)
 echo "Debug: About to create template"
-create_openwrt_template >/dev/null
-echo "Debug: Template creation completed"
-var_template="openwrt-24.10.4-lxc_amd64.tar.gz"
+var_template=$(create_openwrt_template)
+echo "Debug: Template creation completed: $var_template"
 
-# Set container variables
-CT_ID=${var_ctid:-$(pvesh get /cluster/nextid)}
-HN=${var_hostname:-openwrt}
-DISK_SIZE="$var_disk"
-CORE_COUNT="$var_cpu"
-RAM_SIZE="$var_ram"
-BRG="vmbr0"
-NET="dhcp"
+# Set base settings - network config will come from build system
+base_settings
+
+# Override container variables after base_settings
+CT_ID=${CT_ID:-$(pvesh get /cluster/nextid)}
+HN=${HN:-openwrt-lxc}
 TAGS="community-script;${var_tags}"
 
 function default_settings() {
@@ -216,6 +216,7 @@ function build_openwrt_container() {
     --net0 "$NET_STRING" \
     --unprivileged 0 \
     --ostype unmanaged \
+    --arch amd64 \
     --features "nesting=1" \
     --tags "$TAGS" \
     --onboot 1; then
@@ -230,9 +231,25 @@ function build_openwrt_container() {
   pct start "$CT_ID"
   msg_ok "Started LXC Container"
   
-  # Get container IP
-  sleep 5
-  IP=$(pct exec "$CT_ID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
+  # Get container IP with retry logic
+  msg_info "Waiting for network configuration"
+  for i in {1..10}; do
+    sleep 2
+    IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
+    if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
+      msg_ok "Container IP: $IP"
+      break
+    fi
+    if [ $i -eq 10 ]; then
+      IP="DHCP"
+      msg_warn "Could not determine IP address"
+    fi
+  done
+  
+  # Run post-install configuration
+  msg_info "Running OpenWRT post-install configuration"
+  pct exec "$CT_ID" -- bash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
+  msg_ok "Post-install configuration completed"
 }
 
 function update_script() {
@@ -252,14 +269,17 @@ function update_script() {
   exit 0
 }
 
-# Skip the standard build system and call our custom function directly
-# TODO: Alternative approach - create misc/create_openwrt_lxc.sh script
-# This would mirror misc/create-openwrt-template.sh and provide
-# OpenWRT-specific container creation logic separate from main create_lxc.sh
-build_openwrt_container
-
-# Set IP for description
-IP=$(pct exec "$CT_ID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1 2>/dev/null || echo "DHCP")
+# Call our custom container creation function
+build_openwrt_containereation logic separate from main create_lxc.sh
+# Ensure IP is set (it should be from build_openwrt_container)
+if [ -z "$IP" ] || [ "$IP" = "DHCP" ]; then
+  # Try one more time to get the IP
+  IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
+  if [ -z "$IP" ]; then
+    IP="<IP_ADDRESS>"
+    IP_NOTE="\n${INFO}${YW} Run 'pct enter ${CT_ID}' then 'ip addr' to get the container's IP address${CL}"
+  fi
+fi
 
 # Set CTID for final output
 CTID="$CT_ID"
@@ -271,3 +291,4 @@ echo -e "${TAB}${GATEWAY}${BGN}http://${IP}${CL}"
 echo -e "${INFO}${YW} Default credentials: root / (no password)${CL}"
 echo -e "${INFO}${YW} SSH Access: ssh root@${IP}${CL}"
 echo -e "${INFO}${YW} Console Access: pct enter ${CTID}${CL}"
+${IP_NOTE:-}
