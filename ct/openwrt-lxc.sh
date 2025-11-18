@@ -150,11 +150,15 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
+  echo "=== DEBUG: build_container() CALLED ===" >&2
   # Debug: Show all relevant variables
   echo "Debug: build_container called with:" >&2
   echo "Debug: CTID='$CTID'" >&2
   echo "Debug: CT_ID='$CT_ID'" >&2
   echo "Debug: NEXTID='$NEXTID'" >&2
+  echo "Debug: All environment variables with CT or ID:" >&2
+  env | grep -E '(CT|ID)' | sort >&2
+  echo "=== END DEBUG INFO ===" >&2
   
   # The build system should set CTID from user input
   if [ -z "$CTID" ]; then
@@ -325,8 +329,14 @@ function update_script() {
   exit 0
 }
 
+# Debug: Show what we have before calling start()
+echo "Debug: Before start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
+
 # Use standard build system - start() will call build_container() automatically
 start
+
+# Debug: Show what we have after start()
+echo "Debug: After start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
 # Note: description() is called automatically by build.func after container creation
 
 # Ensure IP is set with fallback logic
