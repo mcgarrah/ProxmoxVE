@@ -5,14 +5,20 @@
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://openwrt.org/
 
-source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
-color
-verb_ip6
-catch_errors
-setting_up_container
-network_check
+# Simple message functions for OpenWRT
+msg_info() {
+    echo "[INFO] $1"
+}
 
-msg_info "Configuring OpenWrt for LXC"
+msg_ok() {
+    echo "[OK] $1"
+}
+
+msg_warn() {
+    echo "[WARN] $1"
+}
+
+echo "[INFO] Configuring OpenWrt for LXC"
 
 # Configure network interface for LXC
 uci set network.lan.proto='dhcp'
@@ -46,30 +52,29 @@ uci commit firewall
 # Create runtime directories
 mkdir -p /var/lock /var/run /tmp/luci-sessions
 
-msg_ok "Configured OpenWrt for LXC"
+echo "[OK] Configured OpenWrt for LXC"
 
-msg_info "Starting OpenWrt services"
+echo "[INFO] Starting OpenWrt services"
 /etc/init.d/network restart
 /etc/init.d/dropbear start
 /etc/init.d/uhttpd start
-msg_ok "Started OpenWrt services"
+echo "[OK] Started OpenWrt services"
 
 # Update packages and install additional components
-msg_info "Updating OpenWrt packages"
+echo "[INFO] Updating OpenWrt packages"
 opkg update
 opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade
-msg_ok "Updated OpenWrt packages"
+echo "[OK] Updated OpenWrt packages"
 
-msg_info "Installing additional LuCI packages"
+echo "[INFO] Installing additional LuCI packages"
 opkg install luci-mod-admin-full luci-app-attendedsysupgrade auc || {
-    msg_warn "Some packages failed to install, continuing..."
+    echo "[WARN] Some packages failed to install, continuing..."
 }
-msg_ok "Installed additional LuCI packages"
+echo "[OK] Installed additional LuCI packages"
 
 # Restart services after package installation
-msg_info "Restarting services"
+echo "[INFO] Restarting services"
 /etc/init.d/uhttpd restart
-msg_ok "Services restarted"
+echo "[OK] Services restarted"
 
-motd_ssh
-customize
+echo "[INFO] OpenWrt LXC configuration completed"
