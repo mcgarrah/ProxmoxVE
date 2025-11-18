@@ -5,19 +5,6 @@
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://openwrt.org/
 
-# Simple message functions for OpenWRT
-msg_info() {
-    echo "[INFO] $1"
-}
-
-msg_ok() {
-    echo "[OK] $1"
-}
-
-msg_warn() {
-    echo "[WARN] $1"
-}
-
 echo "[INFO] Configuring OpenWrt for LXC"
 
 # Configure network interface for LXC
