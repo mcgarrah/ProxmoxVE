@@ -150,18 +150,10 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
-  # Write debug to log file so it doesn't get overwritten
-  DEBUG_LOG="/tmp/openwrt-debug.log"
-  {
-    echo "=== DEBUG: build_container() CALLED at $(date) ==="
-    echo "Debug: CTID='$CTID'"
-    echo "Debug: CT_ID='$CT_ID'"
-    echo "Debug: NEXTID='$NEXTID'"
-    echo "Debug: Variables are properly set, proceeding with container creation"
-    echo "=== END DEBUG INFO ==="
-  } >> "$DEBUG_LOG"
-  
-  echo "Debug info written to $DEBUG_LOG" >&2
+  # Ensure CTID is set properly
+  if [ -z "$CTID" ] && [ -n "$CT_ID" ]; then
+    CTID="$CT_ID"
+  fi
   
   # The build system should set CTID from user input
   if [ -z "$CTID" ]; then
@@ -284,7 +276,6 @@ build_container() {
   
   # Get container IP with retry logic
   msg_info "Waiting for network configuration"
-  echo "Debug: About to start IP detection with CTID='$CTID'" >> "$DEBUG_LOG"
   
   # Verify container exists and is running
   if ! pct status "$CTID" >/dev/null 2>&1; then
@@ -294,7 +285,7 @@ build_container() {
   
   for i in {1..10}; do
     sleep 2
-    echo "Debug: IP detection attempt $i/10 for container $CTID" >> "$DEBUG_LOG"
+    # IP detection attempt $i/10
     IP=$(pct exec "$CTID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
     if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
       msg_ok "Container IP: $IP"
@@ -332,19 +323,11 @@ function update_script() {
   exit 0
 }
 
-# Debug: Show what we have before calling start()
-echo "Debug: Before start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
-
 # Use standard build system for interactive prompts only
 start
 
-# Debug: Show what we have after start()
-echo "Debug: After start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
-
 # Set CTID from the build system's CT_ID and call our custom build function
 CTID="$CT_ID"
-echo "Debug: Set CTID='$CTID' from CT_ID, now calling our build_container()" >&2
-echo "Debug: Check /tmp/openwrt-debug.log for detailed debug info" >&2
 build_container
 
 # Ensure IP is set with fallback logic
@@ -364,5 +347,5 @@ echo -e "${TAB}${GATEWAY}${BGN}http://${IP}${CL}"
 echo -e "${INFO}${YW} Default credentials: root / (no password)${CL}"
 echo -e "${INFO}${YW} SSH Access: ssh root@${IP}${CL}"
 echo -e "${INFO}${YW} Console Access: pct enter ${CTID}${CL}"
-echo -e "${INFO}${YW} Debug log: cat /tmp/openwrt-debug.log${CL}"
+# Note: Hostname may show as 'openwrt' if using config file - this is normal
 ${IP_NOTE:-}
