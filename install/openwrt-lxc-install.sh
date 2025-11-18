@@ -54,7 +54,7 @@ opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade
 echo "[OK] Updated OpenWrt packages"
 
 echo "[INFO] Installing additional LuCI packages"
-opkg install luci-mod-admin-full luci-app-attendedsysupgrade auc || {
+opkg install luci-mod-admin-full luci-app-attendedsysupgrade owut || {
     echo "[WARN] Some packages failed to install, continuing..."
 }
 echo "[OK] Installed additional LuCI packages"
