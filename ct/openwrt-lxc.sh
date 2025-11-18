@@ -147,8 +147,6 @@ build_container() {
     fi
   fi
   
-  msg_info "Building container with ID: $CTID"
-  
   # Get storage selections using the same logic as create_lxc.sh
   source <(curl -fsSL ${BASE_URL}/misc/tools.func)
   
@@ -187,6 +185,8 @@ build_container() {
   select_storage container
   CONTAINER_STORAGE="$STORAGE_RESULT"
   msg_ok "Selected container storage: $CONTAINER_STORAGE"
+  
+  msg_info "Building container with ID: $CTID"
   
   # Copy template to selected storage if not already there
   if [ "$TEMPLATE_STORAGE" != "local" ]; then
