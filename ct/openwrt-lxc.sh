@@ -32,7 +32,7 @@ echo "Debug: Starting template creation check"
 
 # Create OpenWRT template if it doesn't exist
 create_openwrt_template() {
-  echo "Debug: Entering create_openwrt_template function"
+  echo "Debug: Entering create_openwrt_template function" >&2
   
   # Get latest OpenWRT version (24.x or newer)
   local openwrt_version=$(curl -s https://downloads.openwrt.org/releases/ | \
@@ -43,54 +43,54 @@ create_openwrt_template() {
     tail -1)
   
   if [ -z "$openwrt_version" ]; then
-    echo "Debug: Failed to fetch latest version, using fallback"
+    echo "Debug: Failed to fetch latest version, using fallback" >&2
     openwrt_version="24.10.4"
   fi
   
   local template_name="openwrt-${openwrt_version}-lxc_amd64.tar.gz"
   local template_path="/var/lib/vz/template/cache/$template_name"
   
-  echo "Debug: Using OpenWRT version: $openwrt_version"
+  echo "Debug: Using OpenWRT version: $openwrt_version" >&2
   
-  echo "Debug: Checking if template exists at: $template_path"
+  echo "Debug: Checking if template exists at: $template_path" >&2
   if [ ! -f "$template_path" ]; then
-    echo "Debug: Template not found, creating it"
-    echo "Debug: BASE_URL is: $BASE_URL"
+    echo "Debug: Template not found, creating it" >&2
+    echo "Debug: BASE_URL is: $BASE_URL" >&2
     
     # Test if we can reach the template creation script
-    echo "Debug: Testing curl access to template script"
+    echo "Debug: Testing curl access to template script" >&2
     if ! curl -fsSL --connect-timeout 10 "${BASE_URL}/misc/create-openwrt-template.sh" >/dev/null; then
-      echo "Error: Cannot access template creation script at ${BASE_URL}/misc/create-openwrt-template.sh"
+      echo "Error: Cannot access template creation script at ${BASE_URL}/misc/create-openwrt-template.sh" >&2
       exit 1
     fi
-    echo "Debug: Template script is accessible"
+    echo "Debug: Template script is accessible" >&2
     
-    echo "Debug: Starting template creation with timeout"
+    echo "Debug: Starting template creation with timeout" >&2
     # Use timeout to prevent hanging
     if ! timeout 300 bash <(curl -fsSL ${BASE_URL}/misc/create-openwrt-template.sh); then
-      echo "Error: Failed to create OpenWRT template (timeout or error)"
+      echo "Error: Failed to create OpenWRT template (timeout or error)" >&2
       exit 1
     fi
-    echo "Debug: Template creation script completed"
+    echo "Debug: Template creation script completed" >&2
     
     # Verify template was created successfully
     if [ ! -f "$template_path" ]; then
-      echo "Error: Template creation completed but file not found at $template_path"
+      echo "Error: Template creation completed but file not found at $template_path" >&2
       exit 1
     fi
     
     # Verify template is not empty
     if [ ! -s "$template_path" ]; then
-      echo "Error: Template file is empty: $template_path"
+      echo "Error: Template file is empty: $template_path" >&2
       exit 1
     fi
     
-    echo "Debug: Template created successfully"
+    echo "Debug: Template created successfully" >&2
   else
-    echo "Debug: Using existing template: $template_name"
+    echo "Debug: Using existing template: $template_name" >&2
   fi
   
-  echo "Debug: Exiting create_openwrt_template function"
+  echo "Debug: Exiting create_openwrt_template function" >&2
   echo "$template_name"
 }
 
@@ -191,11 +191,20 @@ function build_openwrt_container() {
   # Copy template to selected storage if not already there
   if [ "$TEMPLATE_STORAGE" != "local" ]; then
     msg_info "Copying template to $TEMPLATE_STORAGE storage"
-    if ! pveam download "$TEMPLATE_STORAGE" "$var_template" --source "/var/lib/vz/template/cache/$var_template" 2>/dev/null; then
-      # If pveam doesn't work, try direct copy
-      cp "/var/lib/vz/template/cache/$var_template" "$(pvesm path $TEMPLATE_STORAGE:vztmpl/$var_template)"
+    # Check if template already exists in target storage
+    if ! pvesm list "$TEMPLATE_STORAGE" --content vztmpl | grep -q "$var_template"; then
+      if ! pveam download "$TEMPLATE_STORAGE" "$var_template" --source "/var/lib/vz/template/cache/$var_template" 2>/dev/null; then
+        # If pveam doesn't work, try direct copy
+        local target_path=$(pvesm path "$TEMPLATE_STORAGE:vztmpl/$var_template" 2>/dev/null)
+        if [ -n "$target_path" ]; then
+          cp "/var/lib/vz/template/cache/$var_template" "$target_path"
+        else
+          msg_error "Cannot determine target path for template"
+          exit 1
+        fi
+      fi
     fi
-    msg_ok "Template copied to $TEMPLATE_STORAGE"
+    msg_ok "Template available in $TEMPLATE_STORAGE"
   fi
   
   msg_info "Creating OpenWRT LXC Container"
