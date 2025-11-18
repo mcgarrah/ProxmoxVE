@@ -150,14 +150,26 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
-  # The build system sets CTID from user input, use that
-  if [ -z "$CTID" ]; then
-    msg_error "CTID not set by build system"
-    exit 1
-  fi
+  # Debug: Show all relevant variables
+  echo "Debug: build_container called with:" >&2
+  echo "Debug: CTID='$CTID'" >&2
+  echo "Debug: CT_ID='$CT_ID'" >&2
+  echo "Debug: NEXTID='$NEXTID'" >&2
   
-  # Use CTID consistently (this is what build system provides)
-  CT_ID="$CTID"
+  # The build system should set CTID from user input
+  if [ -z "$CTID" ]; then
+    # Fallback: try to use CT_ID or NEXTID
+    if [ -n "$CT_ID" ]; then
+      CTID="$CT_ID"
+      echo "Debug: Using CT_ID as fallback: $CTID" >&2
+    elif [ -n "$NEXTID" ]; then
+      CTID="$NEXTID"
+      echo "Debug: Using NEXTID as fallback: $CTID" >&2
+    else
+      msg_error "No container ID available (CTID, CT_ID, NEXTID all empty)"
+      exit 1
+    fi
+  fi
   
   msg_info "Building container with ID: $CTID"
   
@@ -265,10 +277,17 @@ build_container() {
   
   # Get container IP with retry logic
   msg_info "Waiting for network configuration"
+  echo "Debug: About to start IP detection loop with CTID='$CTID'" >&2
+  
+  # Verify container exists and is running
+  if ! pct status "$CTID" >/dev/null 2>&1; then
+    msg_error "Container $CTID does not exist or is not accessible"
+    exit 1
+  fi
+  
   for i in {1..10}; do
     sleep 2
-    # Debug: Show what we're trying to execute
-    echo "Debug: Attempting to get IP from container $CTID" >&2
+    echo "Debug: IP detection attempt $i/10 for container $CTID" >&2
     IP=$(pct exec "$CTID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
     if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
       msg_ok "Container IP: $IP"
