@@ -150,8 +150,16 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
-  # Set CTID for build system compatibility
-  CTID="$CT_ID"
+  # The build system sets CTID from user input, use that
+  if [ -z "$CTID" ]; then
+    msg_error "CTID not set by build system"
+    exit 1
+  fi
+  
+  # Use CTID consistently (this is what build system provides)
+  CT_ID="$CTID"
+  
+  msg_info "Building container with ID: $CTID"
   
   # Get storage selections using the same logic as create_lxc.sh
   source <(curl -fsSL ${BASE_URL}/misc/tools.func)
@@ -232,7 +240,7 @@ build_container() {
   
   # Create container directly with pct (required for unmanaged OS type)
   # OpenWRT native MUST be privileged (--unprivileged 0) and unmanaged
-  if ! pct create "$CT_ID" "$TEMPLATE_STORAGE:vztmpl/$var_template" \
+  if ! pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$var_template" \
     --hostname "$HN" \
     --memory "$RAM_SIZE" \
     --cores "$CORE_COUNT" \
@@ -248,18 +256,20 @@ build_container() {
     exit 1
   fi
   
-  msg_ok "Created LXC Container $CT_ID"
+  msg_ok "Created LXC Container $CTID"
   
   # Start container
   msg_info "Starting LXC Container"
-  pct start "$CT_ID"
+  pct start "$CTID"
   msg_ok "Started LXC Container"
   
   # Get container IP with retry logic
   msg_info "Waiting for network configuration"
   for i in {1..10}; do
     sleep 2
-    IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
+    # Debug: Show what we're trying to execute
+    echo "Debug: Attempting to get IP from container $CTID" >&2
+    IP=$(pct exec "$CTID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
     if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
       msg_ok "Container IP: $IP"
       break
@@ -272,7 +282,7 @@ build_container() {
   
   # Run OpenWRT-specific post-install
   msg_info "Running OpenWRT post-install configuration"
-  pct exec "$CT_ID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
+  pct exec "$CTID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
   msg_ok "Post-install configuration completed"
   
   # Call description function after container is fully set up
