@@ -120,14 +120,15 @@ base_settings
 # Override container variables after base_settings - OpenWRT MUST be privileged
 CT_TYPE="0"  # Hardcoded: OpenWRT native requires privileged container
 CT_ID=${CT_ID:-$(pvesh get /cluster/nextid)}
-HN=${HN:-openwrt-lxc}
+# Force hostname to openwrt-lxc (NSAPP would be just "openwrt")
+HN="openwrt-lxc"
 TAGS="community-script;${var_tags}"
 
 function default_settings() {
   CT_TYPE="0"
   PW=""
   CT_ID=$NEXTID
-  HN=$NSAPP
+  HN="openwrt-lxc"  # Force to openwrt-lxc instead of NSAPP (which is just "openwrt")
   DISK_SIZE="$var_disk"
   CORE_COUNT="$var_cpu"
   RAM_SIZE="$var_ram"

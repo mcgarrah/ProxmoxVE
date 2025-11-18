@@ -14,9 +14,9 @@
 #### Container Naming Inconsistency
 
 - **Issue**: Default LXC name in Proxmox shows as "openwrt" but should be "openwrt-lxc"
-- **Current**: Hostname is "openwrt-lxc" but container name is "openwrt"
-- **Status**: ✅ **RESOLVED** - Build system handles naming correctly
-- **Note**: Container name follows Proxmox conventions, hostname is customizable
+- **Problem**: NSAPP variable was "openwrt" instead of "openwrt-lxc"
+- **Fix**: Hardcoded hostname to "openwrt-lxc" in both default_settings and base settings
+- **Status**: ✅ **RESOLVED** - Container now shows as "101 (openwrt-lxc)" in Proxmox console
 
 #### Package Management & Updates
 
