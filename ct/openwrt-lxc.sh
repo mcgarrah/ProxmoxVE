@@ -150,6 +150,9 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
+  # Set CTID for build system compatibility
+  CTID="$CT_ID"
+  
   # Get storage selections using the same logic as create_lxc.sh
   source <(curl -fsSL ${BASE_URL}/misc/tools.func)
   
@@ -271,9 +274,6 @@ build_container() {
   msg_info "Running OpenWRT post-install configuration"
   pct exec "$CT_ID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
   msg_ok "Post-install configuration completed"
-  
-  # Set CTID for description function (build.func expects this)
-  CTID="$CT_ID"
 }
 
 function update_script() {

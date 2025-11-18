@@ -140,6 +140,13 @@ opkg update && opkg install \
 - **Fix**: Move IP detection after container is fully started and configured
 - **Status**: ✅ **RESOLVED**
 
+### CTID Variable Not Set
+
+- **Issue**: "Parameter verification failed. vmid: type check ('integer') failed - got ''"
+- **Problem**: CTID variable not set early enough for build system description() function
+- **Fix**: Set CTID="$CT_ID" at beginning of build_container() function
+- **Status**: ✅ **RESOLVED**
+
 ## 📋 Development Tasks
 
 ### High Priority
