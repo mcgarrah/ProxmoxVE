@@ -285,7 +285,7 @@ build_container() {
   
   # Get container IP with retry logic
   msg_info "Waiting for network configuration"
-  echo "Debug: About to start IP detection with CTID='$CTID'" >> "$DEBUG_LOG" start IP detection loop with CTID='$CTID'" >&2
+  echo "Debug: About to start IP detection with CTID='$CTID'" >> "$DEBUG_LOG"
   
   # Verify container exists and is running
   if ! pct status "$CTID" >/dev/null 2>&1; then
