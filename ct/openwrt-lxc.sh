@@ -150,15 +150,19 @@ function default_settings() {
 
 # Custom build_container function for OpenWRT (unmanaged OS type requires direct pct create)
 build_container() {
-  echo "=== DEBUG: build_container() CALLED ===" >&2
-  # Debug: Show all relevant variables
-  echo "Debug: build_container called with:" >&2
-  echo "Debug: CTID='$CTID'" >&2
-  echo "Debug: CT_ID='$CT_ID'" >&2
-  echo "Debug: NEXTID='$NEXTID'" >&2
-  echo "Debug: All environment variables with CT or ID:" >&2
-  env | grep -E '(CT|ID)' | sort >&2
-  echo "=== END DEBUG INFO ===" >&2
+  # Write debug to log file so it doesn't get overwritten
+  DEBUG_LOG="/tmp/openwrt-debug.log"
+  {
+    echo "=== DEBUG: build_container() CALLED at $(date) ==="
+    echo "Debug: CTID='$CTID'"
+    echo "Debug: CT_ID='$CT_ID'"
+    echo "Debug: NEXTID='$NEXTID'"
+    echo "Debug: All environment variables with CT or ID:"
+    env | grep -E '(CT|ID)' | sort
+    echo "=== END DEBUG INFO ==="
+  } >> "$DEBUG_LOG"
+  
+  echo "Debug info written to $DEBUG_LOG" >&2
   
   # The build system should set CTID from user input
   if [ -z "$CTID" ]; then
@@ -281,7 +285,7 @@ build_container() {
   
   # Get container IP with retry logic
   msg_info "Waiting for network configuration"
-  echo "Debug: About to start IP detection loop with CTID='$CTID'" >&2
+  echo "Debug: About to start IP detection with CTID='$CTID'" >> "$DEBUG_LOG" start IP detection loop with CTID='$CTID'" >&2
   
   # Verify container exists and is running
   if ! pct status "$CTID" >/dev/null 2>&1; then
@@ -291,7 +295,7 @@ build_container() {
   
   for i in {1..10}; do
     sleep 2
-    echo "Debug: IP detection attempt $i/10 for container $CTID" >&2
+    echo "Debug: IP detection attempt $i/10 for container $CTID" >> "$DEBUG_LOG"
     IP=$(pct exec "$CTID" -- ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
     if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
       msg_ok "Container IP: $IP"
@@ -332,12 +336,17 @@ function update_script() {
 # Debug: Show what we have before calling start()
 echo "Debug: Before start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
 
-# Use standard build system - start() will call build_container() automatically
+# Use standard build system for interactive prompts only
 start
 
 # Debug: Show what we have after start()
 echo "Debug: After start() - CT_ID='$CT_ID', CTID='$CTID'" >&2
-# Note: description() is called automatically by build.func after container creation
+
+# Set CTID from the build system's CT_ID and call our custom build function
+CTID="$CT_ID"
+echo "Debug: Set CTID='$CTID' from CT_ID, now calling our build_container()" >&2
+echo "Debug: Check /tmp/openwrt-debug.log for detailed debug info" >&2
+build_container
 
 # Ensure IP is set with fallback logic
 if [ -z "$IP" ] || [ "$IP" = "DHCP" ]; then
@@ -356,4 +365,5 @@ echo -e "${TAB}${GATEWAY}${BGN}http://${IP}${CL}"
 echo -e "${INFO}${YW} Default credentials: root / (no password)${CL}"
 echo -e "${INFO}${YW} SSH Access: ssh root@${IP}${CL}"
 echo -e "${INFO}${YW} Console Access: pct enter ${CTID}${CL}"
+echo -e "${INFO}${YW} Debug log: cat /tmp/openwrt-debug.log${CL}"
 ${IP_NOTE:-}
