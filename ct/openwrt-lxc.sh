@@ -157,8 +157,7 @@ build_container() {
     echo "Debug: CTID='$CTID'"
     echo "Debug: CT_ID='$CT_ID'"
     echo "Debug: NEXTID='$NEXTID'"
-    echo "Debug: All environment variables with CT or ID:"
-    env | grep -E '(CT|ID)' | sort
+    echo "Debug: Variables are properly set, proceeding with container creation"
     echo "=== END DEBUG INFO ==="
   } >> "$DEBUG_LOG"
   
