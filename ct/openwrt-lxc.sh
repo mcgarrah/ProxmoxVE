@@ -274,6 +274,9 @@ build_container() {
   msg_info "Running OpenWRT post-install configuration"
   pct exec "$CT_ID" -- ash -c "$(curl -fsSL ${BASE_URL}/install/openwrt-lxc-install.sh)"
   msg_ok "Post-install configuration completed"
+  
+  # Call description function after container is fully set up
+  description
 }
 
 function update_script() {
@@ -295,7 +298,7 @@ function update_script() {
 
 # Use standard build system - start() will call build_container() automatically
 start
-description
+# Note: description() is called automatically by build.func after container creation
 
 # Ensure IP is set with fallback logic
 if [ -z "$IP" ] || [ "$IP" = "DHCP" ]; then
