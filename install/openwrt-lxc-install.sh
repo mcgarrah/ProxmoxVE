@@ -48,20 +48,51 @@ echo "[INFO] Starting OpenWrt services"
 echo "[OK] Started OpenWrt services"
 
 # Update packages and install additional components
+# Note: OpenWRT uses opkg package manager across all versions (v23, v24, snapshots)
 echo "[INFO] Updating OpenWrt packages"
 opkg update
 opkg list-upgradable | cut -f 1 -d ' ' | xargs -r opkg upgrade
 echo "[OK] Updated OpenWrt packages"
 
 echo "[INFO] Installing additional LuCI packages"
-opkg install luci-mod-admin-full luci-app-attendedsysupgrade owut || {
-    echo "[WARN] Some packages failed to install, continuing..."
+# Install base LuCI packages
+opkg install luci-mod-admin-full luci-app-attendedsysupgrade || {
+    echo "[WARN] Some LuCI packages failed to install, continuing..."
 }
 echo "[OK] Installed additional LuCI packages"
+
+# Detect OpenWRT version for conditional package installation
+OPENWRT_FULL_VERSION=$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)
+OPENWRT_MAJOR=$(echo "$OPENWRT_FULL_VERSION" | cut -d. -f1)
+echo "[INFO] Detected OpenWRT version: $OPENWRT_FULL_VERSION (major: $OPENWRT_MAJOR)"
+
+# Install version-appropriate upgrade tool
+if [ "$OPENWRT_MAJOR" -ge 24 ] 2>/dev/null; then
+    echo "[INFO] Installing owut (OpenWrt v24+ upgrade tool)"
+    opkg install owut || echo "[WARN] owut installation failed"
+    # v24+ specific packages
+    opkg install luci-app-advanced-reboot || echo "[INFO] Advanced reboot not available in this build"
+else
+    echo "[INFO] Installing auc (OpenWrt v23.x upgrade tool)"
+    opkg install auc || echo "[WARN] auc installation failed"
+    # Note: luci-app-advanced-reboot is v24+ only, no v23 equivalent
+fi
 
 # Restart services after package installation
 echo "[INFO] Restarting services"
 /etc/init.d/uhttpd restart
 echo "[OK] Services restarted"
 
+# Display version information for troubleshooting
+echo "[INFO] OpenWRT Configuration Summary:"
+echo "  Version: $OPENWRT_FULL_VERSION"
+echo "  Kernel: $(uname -r)"
+echo "  Architecture: $(uname -m)"
 echo "[INFO] OpenWrt LXC configuration completed"
+
+# Version-specific notes
+if [ "$OPENWRT_MAJOR" -ge 24 ] 2>/dev/null; then
+    echo "[NOTE] OpenWRT v24+ uses Linux 6.6.x kernel and owut upgrade tool"
+else
+    echo "[NOTE] OpenWRT v23.x uses Linux 5.15.x kernel and auc upgrade tool"
+fi
