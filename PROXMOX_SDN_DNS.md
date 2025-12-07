@@ -7,6 +7,7 @@ Automatically configure PowerDNS as a DNS provider in Proxmox SDN during LXC ins
 ## 📋 **Current Manual Process**
 
 Users currently need to:
+
 1. Install PowerDNS LXC container
 2. Copy API key, URL, TTL, and SSL fingerprint from installation output
 3. Navigate to Proxmox web interface → Datacenter → SDN → DNS
@@ -18,6 +19,7 @@ Users currently need to:
 ### **Interactive Installation Options**
 
 Add new environment variables and prompts:
+
 - `var_sdn_dns_enabled` - Enable automatic SDN DNS configuration
 - `var_sdn_apply_changes` - Automatically apply SDN changes after configuration
 - `var_proxmox_node` - Target Proxmox node (auto-detect if possible)
@@ -37,6 +39,7 @@ DNS_PROVIDER_ID=${var_hostname:-powerdns}  # Use LXC hostname as DNS ID
 ### **1. Proxmox API Integration**
 
 **API Endpoints Required:**
+
 ```bash
 # Add DNS provider
 PUT /api2/json/cluster/sdn/dns/{dns_id}
@@ -46,12 +49,14 @@ PUT /api2/json/cluster/sdn
 ```
 
 **API Authentication:**
+
 - Use Proxmox host's root credentials or API tokens
 - Validate permissions for SDN configuration access
 
 ### **2. DNS Provider Configuration**
 
 **Required Parameters:**
+
 ```json
 {
   "type": "powerdns",
@@ -62,12 +67,14 @@ PUT /api2/json/cluster/sdn
 ```
 
 **SSL Certificate Handling:**
+
 - Extract SHA256 fingerprint from generated certificate
 - Configure Proxmox to accept self-signed certificate
 
 ### **3. Installation Flow Integration**
 
 **New Interactive Prompts:**
+
 ```bash
 # After PowerDNS installation completes
 if [[ "$ROLE" == "a" || "$ROLE" == "b" ]]; then
@@ -84,24 +91,28 @@ fi
 ## 📝 **Implementation Steps**
 
 ### **Phase 1: API Research & Validation**
+
 - [ ] Research Proxmox SDN API endpoints and authentication methods
 - [ ] Test API calls for DNS provider configuration
 - [ ] Validate required permissions and access levels
 - [ ] Test SSL certificate fingerprint handling
 
 ### **Phase 2: Core Implementation**
+
 - [ ] Add new environment variables and interactive prompts
 - [ ] Implement Proxmox API client functions
 - [ ] Add DNS provider configuration logic
 - [ ] Implement error handling and validation
 
 ### **Phase 3: Integration & Testing**
+
 - [ ] Integrate SDN configuration into installation flow
 - [ ] Add optional automatic SDN changes application
 - [ ] Test with various Proxmox versions and configurations
 - [ ] Add comprehensive error messages and troubleshooting
 
 ### **Phase 4: Documentation & Polish**
+
 - [ ] Update JSON configuration with new options
 - [ ] Add installation output for SDN configuration status
 - [ ] Update user documentation and examples
@@ -110,6 +121,7 @@ fi
 ## 🔍 **API Research Requirements**
 
 ### **Proxmox API Investigation**
+
 ```bash
 # Commands to research:
 pvesh get /cluster/sdn/dns
@@ -118,11 +130,13 @@ pvesh set /cluster/sdn
 ```
 
 ### **Authentication Methods**
+
 - Root user authentication
 - API token authentication  
 - Permission requirements for SDN configuration
 
 ### **Error Handling Scenarios**
+
 - Proxmox API unavailable
 - Insufficient permissions
 - Network connectivity issues
@@ -132,6 +146,7 @@ pvesh set /cluster/sdn
 ## 🎛️ **Configuration Options**
 
 ### **Environment Variables**
+
 ```bash
 # Enable SDN DNS integration
 var_sdn_dns_enabled=true
@@ -147,6 +162,7 @@ var_proxmox_node=pve-node1
 ```
 
 ### **Interactive Prompts**
+
 ```bash
 Configure PowerDNS in Proxmox SDN automatically? [y/N]
 DNS Provider ID [container-hostname]: 
@@ -157,12 +173,14 @@ Proxmox node name [auto-detected]:
 ## 📊 **Expected Benefits**
 
 ### **User Experience**
+
 - ✅ Zero manual configuration required
 - ✅ Immediate SDN integration
 - ✅ Reduced setup complexity
 - ✅ Fewer configuration errors
 
 ### **Technical Benefits**
+
 - ✅ Consistent DNS provider naming
 - ✅ Automatic SSL certificate handling
 - ✅ Validated API connectivity
@@ -171,16 +189,19 @@ Proxmox node name [auto-detected]:
 ## ⚠️ **Considerations & Risks**
 
 ### **Security Considerations**
+
 - API authentication and permission validation
 - SSL certificate trust and fingerprint verification
 - Network access between container and Proxmox host
 
 ### **Compatibility Concerns**
+
 - Proxmox VE version compatibility
 - SDN feature availability
 - API endpoint stability across versions
 
 ### **Error Recovery**
+
 - Failed API calls and rollback procedures
 - Network connectivity issues
 - Permission denied scenarios
@@ -189,6 +210,7 @@ Proxmox node name [auto-detected]:
 ## 🧪 **Testing Strategy**
 
 ### **Test Scenarios**
+
 1. **Fresh Installation**: New PowerDNS container with SDN integration
 2. **Existing SDN**: Container installation with existing DNS providers
 3. **Permission Issues**: Limited API access scenarios
@@ -196,6 +218,7 @@ Proxmox node name [auto-detected]:
 5. **Version Compatibility**: Different Proxmox VE versions
 
 ### **Validation Points**
+
 - DNS provider appears in Proxmox SDN configuration
 - API connectivity test succeeds
 - SSL certificate fingerprint matches
